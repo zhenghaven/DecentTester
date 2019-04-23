@@ -4,8 +4,7 @@ cmake_minimum_required(VERSION 3.11)
 #   Options for Decent DHT Project
 #==========================================================
 
-set(Enc_Proj_Name_List DecentDht)
-set(Client_Proj_Name_List )
+option(DHT_YCSB_TEST "Test set option: Decent DHT test with YCSB" ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(HUNTER_BOOST_RUNTIME_STATIC ON CACHE BOOL "Switch for using boost runtime static linking." FORCE)
@@ -13,6 +12,11 @@ set(HUNTER_BOOST_RUNTIME_STATIC ON CACHE BOOL "Switch for using boost runtime st
 if(APPLE)
 	message(WARNING "Mac OS is not supported by Intel SGX for now. Trying to build in simulation mode...")
 	set(CMAKE_BUILD_TYPE DebugSimulation)
+endif()
+
+# Automated part:
+if(${DHT_YCSB_TEST})
+	set(DHT_TEST_ENCLAVE ON)
 endif()
 #==========================================================
 #   Setup Hunter
@@ -199,39 +203,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/libs/decent-ra-api/cmake/FindSgxSdk.cmake)
 set(SOURCEDIR ${CMAKE_CURRENT_LIST_DIR}/sources)
 file(GLOB_RECURSE SOURCES ${SOURCEDIR}/*.[ch]* ${SOURCEDIR}/*.edl)
 
-# Common Files
-set(SOURCEDIR_Common ${SOURCEDIR}/Common)
-file(GLOB_RECURSE SOURCES_Common ${SOURCEDIR_Common}/*.[ch]*)
-
-# Common App Files
-set(SOURCEDIR_Common_App ${SOURCEDIR}/Common_App)
-file(GLOB_RECURSE SOURCES_Common_App ${SOURCEDIR_Common_App}/*.[ch]*)
-
-# Common Enc Files
-set(SOURCEDIR_Common_Enc ${SOURCEDIR}/Common_Enc)
-file(GLOB_RECURSE SOURCES_Common_Enc ${SOURCEDIR_Common_Enc}/*.[ch]*)
-file(GLOB_RECURSE SOURCES_Common_EDL ${SOURCEDIR_Common_Enc}/*.edl)
-
-foreach(Proj_Name IN ITEMS ${Enc_Proj_Name_List})
-	
-	# Enclave Project Files:
-	set(SOURCEDIR_${Proj_Name}_App ${SOURCEDIR}/${Proj_Name}_App)
-	set(SOURCEDIR_${Proj_Name}_Enc ${SOURCEDIR}/${Proj_Name}_Enc)
-	file(GLOB_RECURSE SOURCES_${Proj_Name}_App ${SOURCEDIR_${Proj_Name}_App}/*.[ch]*)
-	file(GLOB_RECURSE SOURCES_${Proj_Name}_Enc ${SOURCEDIR_${Proj_Name}_Enc}/*.[ch]*)
-	file(GLOB_RECURSE SOURCES_${Proj_Name}_EDL ${SOURCEDIR_${Proj_Name}_Enc}/*.edl)
-	
-endforeach()
-
-foreach(Proj_Name IN ITEMS ${Client_Proj_Name_List})
-	
-	# Client Project Files:
-	set(SOURCEDIR_${Proj_Name} ${SOURCEDIR}/${Proj_Name})
-	file(GLOB_RECURSE SOURCES_${Proj_Name} ${SOURCEDIR_${Proj_Name}}/*.[ch]*)
-	
-endforeach()
-
-
 #==========================================================
 #   Setup filters
 #==========================================================
@@ -265,153 +236,14 @@ else()
 endif()
 
 #==========================================================
-#   Enclave Projects
+#   Projects
 #==========================================================
 
-foreach(Proj_Name IN ITEMS ${Enc_Proj_Name_List})
+if(${DHT_TEST_ENCLAVE})
+	#add_subdirectory(${SOURCEDIR}/DhtClient_Enclave)
+endif()
 
-	###########################################################
-	### EDL
-	###########################################################
-	
-	set(EDL_T_SRC_OUTPUT ${SOURCEDIR_${Proj_Name}_Enc}/Enclave_t.h ${SOURCEDIR_${Proj_Name}_Enc}/Enclave_t.c)
-	set(EDL_U_SRC_OUTPUT ${SOURCEDIR_${Proj_Name}_App}/Enclave_u.h ${SOURCEDIR_${Proj_Name}_App}/Enclave_u.c)
-
-	add_custom_command(OUTPUT ${EDL_T_SRC_OUTPUT}
-		COMMAND "${INTEL_SGX_EDGER_PATH}"  
-		--trusted "${SOURCEDIR_${Proj_Name}_Enc}/Enclave.edl" 
-		--search-path "${SOURCEDIR_Common_Enc}" 
-		--search-path "${SOURCEDIR_${Proj_Name}_Enc}" 
-		--search-path "${DECENT_API_EDL_DIR}" 
-		--search-path "${INTEL_SGX_SDK_INCLUDE_DIR}"
-		WORKING_DIRECTORY "${SOURCEDIR_${Proj_Name}_Enc}"
-		DEPENDS "${SOURCEDIR_${Proj_Name}_Enc}/Enclave.edl"
-		COMMENT "Processing EDL for enclave..."
-	)
-
-	add_custom_command(OUTPUT ${EDL_U_SRC_OUTPUT}
-		COMMAND "${INTEL_SGX_EDGER_PATH}"  
-		--untrusted "${SOURCEDIR_${Proj_Name}_Enc}/Enclave.edl" 
-		--search-path "${SOURCEDIR_Common_Enc}" 
-		--search-path "${SOURCEDIR_${Proj_Name}_Enc}" 
-		--search-path "${DECENT_API_EDL_DIR}" 
-		--search-path "${INTEL_SGX_SDK_INCLUDE_DIR}"
-		WORKING_DIRECTORY "${SOURCEDIR_${Proj_Name}_App}"
-		DEPENDS "${SOURCEDIR_${Proj_Name}_Enc}/Enclave.edl"
-		COMMENT "Processing EDL for app..."
-	)
-
-	add_custom_target(${Proj_Name}_EDL DEPENDS ${EDL_T_SRC_OUTPUT} ${EDL_U_SRC_OUTPUT})
-	set_target_properties(${Proj_Name}_EDL PROPERTIES FOLDER "${Proj_Name}")
-
-	###########################################################
-	### Enclave
-	###########################################################
-
-	set(${Proj_Name}_Enclave_File "${Enclave_Prog_Prefix}${Proj_Name}_Enclave.signed.${Enclave_Prog_Postfix}")
-	set(${Proj_Name}_Enclave_Lib "${Enclave_Prog_Prefix}${Proj_Name}_Enclave$<$<CONFIG:Debug>:${CMAKE_DEBUG_POSTFIX}>.${Enclave_Prog_Postfix}")
-
-	add_library(${Proj_Name}_Enclave SHARED ${SOURCES_Common} ${SOURCES_Common_EDL} ${SOURCES_Common_Enc} ${SOURCES_${Proj_Name}_Enc} ${SOURCES_${Proj_Name}_EDL})
-	#defines:
-	target_compile_definitions(${Proj_Name}_Enclave PRIVATE ${COMMON_ENCLAVE_DEFINES})
-	#compiler flags:
-	target_compile_options(${Proj_Name}_Enclave PRIVATE ${INTEL_SGX_SDK_C_FLAGS} $<$<COMPILE_LANGUAGE:CXX>:${INTEL_SGX_SDK_CXX_FLAGS} ${COMMON_ENCLAVE_CXX_OPTIONS}>)
-	#linker flags:
-	set_target_properties(${Proj_Name}_Enclave PROPERTIES LINK_FLAGS "${ENCLAVE_LINKER_OPTIONS} ${INTEL_SGX_SDK_LINKER_FLAGS_T}")
-	set_target_properties(${Proj_Name}_Enclave PROPERTIES FOLDER "${Proj_Name}")
-
-	add_custom_command(TARGET ${Proj_Name}_Enclave
-		POST_BUILD
-		COMMAND "${INTEL_SGX_SIGNER_PATH}" sign 
-		-key "${CMAKE_CURRENT_LIST_DIR}/Enclave_private.pem" 
-		-enclave "${Enclave_Bin_Path}/${${Proj_Name}_Enclave_Lib}" 
-		-out "${CMAKE_BINARY_DIR}/${${Proj_Name}_Enclave_File}" 
-		-config "${SOURCEDIR_${Proj_Name}_Enc}/Enclave.config.xml"
-	)
-
-	target_link_libraries(${Proj_Name}_Enclave 
-		${WHOLE_ARCHIVE_FLAG_BEGIN} 
-		IntelSGX::Trusted::switchless 
-		IntelSGX::Trusted::rts 
-		${WHOLE_ARCHIVE_FLAG_END}
-		${GROUP_FLAG_BEGIN}
-		IntelSGX::Trusted::stdc 
-		IntelSGX::Trusted::cxx 
-		IntelSGX::Trusted::service 
-		IntelSGX::Trusted::key_exchange 
-		IntelSGX::Trusted::crypto 
-		IntelSGX::Trusted::file_system 
-		DecentRa_App_Enclave 
-		mbedcrypto_enclave 
-		mbedx509_enclave 
-		mbedtls_enclave 
-		${GROUP_FLAG_END}
-	)
-
-	add_dependencies(${Proj_Name}_Enclave ${Proj_Name}_EDL)
-
-	###########################################################
-	### App
-	###########################################################
-
-	add_executable(${Proj_Name}_App ${SOURCES_Common} ${SOURCES_Common_EDL} ${SOURCES_Common_App} ${SOURCES_${Proj_Name}_App} ${SOURCES_${Proj_Name}_EDL})
-	#includes:
-	target_include_directories(${Proj_Name}_App PRIVATE ${TCLAP_INCLUDE_DIR})
-	#defines:
-	target_compile_definitions(${Proj_Name}_App PRIVATE ${COMMON_APP_DEFINES} ENCLAVE_FILENAME="${${Proj_Name}_Enclave_File}" TOKEN_FILENAME="${Proj_Name}_Enclave.token")
-	#linker flags:
-	set_target_properties(${Proj_Name}_App PROPERTIES LINK_FLAGS_DEBUG "${APP_DEBUG_LINKER_OPTIONS}")
-	set_target_properties(${Proj_Name}_App PROPERTIES LINK_FLAGS_DEBUGSIMULATION "${APP_DEBUG_LINKER_OPTIONS}")
-	set_target_properties(${Proj_Name}_App PROPERTIES LINK_FLAGS_RELEASE "${APP_RELEASE_LINKER_OPTIONS}")
-	set_target_properties(${Proj_Name}_App PROPERTIES FOLDER "${Proj_Name}")
-
-	target_link_libraries(${Proj_Name}_App 
-		${COMMON_STANDARD_LIBRARIES} 
-		IntelSGX::Untrusted::Libs
-		DecentRa_App_App 
-		jsoncpp_lib_static 
-		mbedcrypto 
-		mbedx509 
-		mbedtls 
-		Boost::filesystem
-		Boost::system
-		${Additional_Sys_Lib}
-	)
-
-	add_dependencies(${Proj_Name}_App ${Proj_Name}_Enclave)
-	
-endforeach()
-
-
-#==========================================================
-#   Client Apps
-#==========================================================
-
-
-foreach(Proj_Name IN ITEMS ${Client_Proj_Name_List})
-
-	add_executable(${Proj_Name} ${SOURCES_Common} ${SOURCES_Common_App} ${SOURCES_${Proj_Name}})
-	#includes:
-	target_include_directories(${Proj_Name} PRIVATE ${TCLAP_INCLUDE_DIR})
-	#defines:
-	target_compile_definitions(${Proj_Name} PRIVATE ${COMMON_APP_DEFINES} DECENT_PURE_CLIENT)
-	#linker flags:
-	set_target_properties(${Proj_Name} PROPERTIES LINK_FLAGS_DEBUG "${APP_DEBUG_LINKER_OPTIONS}")
-	set_target_properties(${Proj_Name} PROPERTIES LINK_FLAGS_DEBUGSIMULATION "${APP_DEBUG_LINKER_OPTIONS}")
-	set_target_properties(${Proj_Name} PROPERTIES LINK_FLAGS_RELEASE "${APP_RELEASE_LINKER_OPTIONS}")
-	set_target_properties(${Proj_Name} PROPERTIES FOLDER "Client")
-
-	target_link_libraries(${Proj_Name} 
-		${COMMON_STANDARD_LIBRARIES} 
-		#IntelSGX::SDK_Untrusted
-		DecentRa_App_App 
-		jsoncpp_lib_static 
-		mbedcrypto 
-		mbedx509 
-		mbedtls 
-		Boost::filesystem
-		Boost::system
-		${Additional_Sys_Lib}
-	)
-
-endforeach()
+if(${DHT_YCSB_TEST})
+	add_subdirectory(${SOURCEDIR}/DhtClientYcsb_Java)
+	#add_subdirectory(${SOURCEDIR}/DhtClient_Enclave)
+endif()
