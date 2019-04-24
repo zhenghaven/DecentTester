@@ -25,12 +25,15 @@ namespace
 
 }
 
-extern "C" int ecall_dht_client_insert(const uint8_t* key_buf, size_t key_size, const uint8_t* val_buf, size_t val_size)
+extern "C" int ecall_dht_client_insert(const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)
 {
 	try
 	{
-		std::vector<uint8_t> key(key_buf, key_buf + key_size);
-		std::vector<uint8_t> val(val_buf, val_buf + val_size);
+		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
+		const uint8_t* ValBytePtr = static_cast<const uint8_t*>(val_buf);
+
+		std::vector<uint8_t> key(keyBytePtr, keyBytePtr + key_size);
+		std::vector<uint8_t> val(ValBytePtr, ValBytePtr + val_size);
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
@@ -47,11 +50,13 @@ extern "C" int ecall_dht_client_insert(const uint8_t* key_buf, size_t key_size, 
 	}
 }
 
-extern "C" int ecall_dht_client_read(const uint8_t* key_buf, size_t key_size, uint8_t** out_val_buf, size_t* out_val_size)
+extern "C" int ecall_dht_client_read(const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size)
 {
 	try
 	{
-		std::vector<uint8_t> key(key_buf, key_buf + key_size);
+		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
+
+		std::vector<uint8_t> key(keyBytePtr, keyBytePtr + key_size);
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
@@ -67,7 +72,8 @@ extern "C" int ecall_dht_client_read(const uint8_t* key_buf, size_t key_size, ui
 			return false;
 		}
 
-		std::copy(val.begin(), val.end(), *out_val_buf);
+		uint8_t* ValBytePtr = static_cast<uint8_t*>(*out_val_buf);
+		std::copy(val.begin(), val.end(), ValBytePtr);
 		*out_val_size = val.size();
 
 		return true;
@@ -79,11 +85,13 @@ extern "C" int ecall_dht_client_read(const uint8_t* key_buf, size_t key_size, ui
 	}
 }
 
-extern "C" int ecall_dht_client_delete(const uint8_t* key_buf, size_t key_size)
+extern "C" int ecall_dht_client_delete(const void* key_buf, size_t key_size)
 {
 	try
 	{
-		std::vector<uint8_t> key(key_buf, key_buf + key_size);
+		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
+
+		std::vector<uint8_t> key(keyBytePtr, keyBytePtr + key_size);
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
