@@ -11,6 +11,13 @@ endif()
 
 if(MSVC)
 	set(JAVAC_BIN_PATH ${JAVA_HOME_DIR}/bin/javac.exe)
+	set(JAVA_INCLUDE_OS win32)
 else()
 	set(JAVAC_BIN_PATH ${JAVA_HOME_DIR}/bin/javac)
+	set(JAVA_INCLUDE_OS linux)
+endif()
+
+if(NOT TARGET Java::JNI)
+	add_library(Java::JNI INTERFACE IMPORTED GLOBAL)
+	target_include_directories(Java::JNI INTERFACE ${JAVA_HOME_DIR}/include ${JAVA_HOME_DIR}/include/${JAVA_INCLUDE_OS})
 endif()
