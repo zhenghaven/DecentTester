@@ -7,14 +7,14 @@ public class DhtClientBinding
 		System.loadLibrary("DhtClientYcsb_App"); // Load native library.
 	}
 
-	public static native boolean init();
+	public static native void init() throws DhtClientBindingException;
 
-	public static native boolean cleanup();
+	public static native void cleanup() throws DhtClientBindingException;
 
-	public static native boolean read(String key, String value);
+	public static native String read(String key) throws DhtClientBindingException;
 
-	public static native boolean insert(String key, String value);
+	public static native void insert(String key, String value) throws DhtClientBindingException;
 
-	//public static boolean delete(String key);
+	public static native void delete(String key) throws DhtClientBindingException;
 
 }
