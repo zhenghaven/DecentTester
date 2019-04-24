@@ -39,9 +39,9 @@ get_filename_component(HUNTER_ROOT "${CMAKE_CURRENT_LIST_DIR}/hunter" ABSOLUTE)
 HunterGate(URL "x" SHA1 "xxxxxxxx" FILEPATH ${CMAKE_CURRENT_LIST_DIR}/HunterConfig.cmake)
 
 #==========================================================
-#   Start Decent Decent DHT Project
+#   Start Decent Decent Tester Project
 #==========================================================
-project(DecentDHT)
+project(DecentTester)
 
 #==========================================================
 #   Add Hunter Libraries
@@ -226,13 +226,9 @@ else()
 endif()
 
 if(MSVC)
-	set(Enclave_Prog_Prefix )
-	set(Enclave_Prog_Postfix dll)
-	set(Enclave_Bin_Path "${CMAKE_BINARY_DIR}/$<CONFIG>")
+	set(ENCLAVE_BINARY_SUBDIRECTORY "$<CONFIG>")
 else()
-	set(Enclave_Prog_Prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
-	set(Enclave_Prog_Postfix so)
-	set(Enclave_Bin_Path "${CMAKE_BINARY_DIR}")
+	set(ENCLAVE_BINARY_SUBDIRECTORY "")
 endif()
 
 #==========================================================
@@ -240,10 +236,10 @@ endif()
 #==========================================================
 
 if(${DHT_TEST_ENCLAVE})
-	#add_subdirectory(${SOURCEDIR}/DhtClient_Enclave)
+	add_subdirectory(${SOURCEDIR}/DhtClient_Enclave)
 endif()
 
 if(${DHT_YCSB_TEST})
 	add_subdirectory(${SOURCEDIR}/DhtClientYcsb_Java)
-	#add_subdirectory(${SOURCEDIR}/DhtClient_Enclave)
+	add_subdirectory(${SOURCEDIR}/DhtClientYcsb_App)
 endif()

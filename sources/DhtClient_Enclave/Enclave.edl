@@ -1,0 +1,26 @@
+enclave
+{
+	include "sgx_key_exchange.h"
+	include "sgx_trts.h"
+	
+	from "sgx_ra_client.edl" import *;
+	from "sgx_ra_sp.edl" import *;
+	from "decent_tools.edl" import *;
+	from "decent_net.edl" import *;
+	from "decent_ra_app.edl" import *;
+
+	untrusted
+	{
+		void* ocall_dht_client_cnt_mgr_get_dht_node();
+		void* ocall_dht_client_cnt_mgr_get_dht_store(uint64_t address);
+
+		uint8_t* ocall_dht_client_malloc(size_t size);
+	};
+
+	trusted
+	{
+		public int ecall_dht_client_insert([in, size=key_size] const uint8_t* key_buf, size_t key_size, [in, size=val_size] const uint8_t* val_buf, size_t val_size);
+		public int ecall_dht_client_read([in, size=key_size] const uint8_t* key_buf, size_t key_size, [out] uint8_t** out_val_buf, [out] size_t* out_val_size);
+		public int ecall_dht_client_delete([in, size=key_size] const uint8_t* key_buf, size_t key_size);
+	};
+};
