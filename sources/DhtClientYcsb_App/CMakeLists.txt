@@ -63,3 +63,32 @@ target_link_libraries(${PROJECT_NAME}_App
 )
 
 add_dependencies(${PROJECT_NAME}_App ${PROJECT_NAME}_EDL)
+
+###########################################################
+### Debugger
+###########################################################
+
+set(ENCLAVE_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/../DhtClient_Enclave)
+
+add_executable(${PROJECT_NAME}_Debugger Debugger.cpp)
+#includes:
+# target_include_directories(${PROJECT_NAME}_Debugger PRIVATE ${TCLAP_INCLUDE_DIR})
+#defines:
+target_compile_definitions(${PROJECT_NAME}_Debugger PRIVATE ${COMMON_APP_DEFINES} ENCLAVE_FILENAME="${${PROJECT_NAME}_ENCLAVE_SIGNED}" TOKEN_FILENAME="${PROJECT_NAME}_Enclave.token")
+#linker flags:
+set_target_properties(${PROJECT_NAME}_Debugger PROPERTIES LINK_FLAGS_DEBUG "${APP_DEBUG_LINKER_OPTIONS}")
+set_target_properties(${PROJECT_NAME}_Debugger PROPERTIES LINK_FLAGS_DEBUGSIMULATION "${APP_DEBUG_LINKER_OPTIONS}")
+set_target_properties(${PROJECT_NAME}_Debugger PROPERTIES LINK_FLAGS_RELEASE "${APP_RELEASE_LINKER_OPTIONS}")
+set_target_properties(${PROJECT_NAME}_Debugger PROPERTIES FOLDER "${PROJECT_NAME}")
+
+target_link_libraries(${PROJECT_NAME}_Debugger 
+	${COMMON_STANDARD_LIBRARIES} 
+	${PROJECT_NAME}_App
+	${Additional_Sys_Lib}
+)
+
+add_custom_command(TARGET ${PROJECT_NAME}_Debugger 
+	POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy "${ENCLAVE_BIN_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED}" "${CMAKE_CURRENT_BINARY_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED}"
+)
+add_dependencies(${PROJECT_NAME}_Debugger ${ENCLAVE_PROJECT_NAME}_Enclave)
