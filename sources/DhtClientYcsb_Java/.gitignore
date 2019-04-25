@@ -1,5 +1,6 @@
 #Java Byte Code
 *.class
+*.jar
 
 #Generated C Header
 *.h
