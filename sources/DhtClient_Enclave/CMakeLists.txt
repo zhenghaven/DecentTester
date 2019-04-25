@@ -6,7 +6,7 @@ set(PROJECT_NAME DhtClientSgx)
 file(GLOB_RECURSE SOURCES_${PROJECT_NAME}_Enc ${CMAKE_CURRENT_LIST_DIR}/*.[ch]*)
 file(GLOB_RECURSE SOURCES_${PROJECT_NAME}_EDL ${CMAKE_CURRENT_LIST_DIR}/*.edl)
 
-source_group(TREE ${CMAKE_CURRENT_LIST_DIR} FILES ${SOURCES_${PROJECT_NAME}_Enc} ${SOURCES_${PROJECT_NAME}_EDL})
+source_group(TREE ${CMAKE_CURRENT_LIST_DIR}/../ FILES ${SOURCES_${PROJECT_NAME}_Enc} ${SOURCES_${PROJECT_NAME}_EDL})
 
 ###########################################################
 ### EDL

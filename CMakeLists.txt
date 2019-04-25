@@ -201,13 +201,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/libs/decent-ra-api/cmake/FindSgxSdk.cmake)
 #==========================================================
 
 set(SOURCEDIR ${CMAKE_CURRENT_LIST_DIR}/sources)
-file(GLOB_RECURSE SOURCES ${SOURCEDIR}/*.[ch]* ${SOURCEDIR}/*.edl)
-
-#==========================================================
-#   Setup filters
-#==========================================================
-
-source_group(TREE ${SOURCEDIR} FILES ${SOURCES})
 
 #==========================================================
 #   G++ linking flags
