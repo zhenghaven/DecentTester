@@ -53,17 +53,34 @@ namespace
 		return std::make_unique<TCPConnection>(serverIp, GetDecentServerItem().GetPort());
 	}
 
-	std::unique_ptr<Connection> SetCntMgrAndSendWhiteListAndGetDecentServerConnection()
+	class Initializer
+	{
+	public:
+		Initializer();
+		~Initializer();
+
+	private:
+
+	};
+
+	Initializer::Initializer()
 	{
 		ConnectionManager::SetConfigManager(GetConfigManager());
 		GetDecentServerConnection()->SendPack(Message::LoadWhiteList(gsk_whiteListKey, GetConfigManager().GetLoadedWhiteListStr()));
-		return GetDecentServerConnection();
+	}
+
+	Initializer::~Initializer()
+	{
 	}
 }
 
-DhtClientApp & DhtClient::GetDhtClientApp()
+JNIEXPORT void* JNICALL DhtClient::Initialize()
 {
-	static DhtClientApp inst(ENCLAVE_FILENAME, KnownFolderType::LocalAppDataEnclave, TOKEN_FILENAME, gsk_whiteListKey, *SetCntMgrAndSendWhiteListAndGetDecentServerConnection());
+	static Initializer inst;
+	return &inst;
+}
 
-	return inst;
+JNIEXPORT DhtClientApp* JNICALL DhtClient::GetNewDhtClientApp()
+{
+	return new DhtClientApp(ENCLAVE_FILENAME, KnownFolderType::LocalAppDataEnclave, TOKEN_FILENAME, gsk_whiteListKey, *GetDecentServerConnection());
 }

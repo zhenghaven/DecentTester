@@ -2,10 +2,12 @@
 
 namespace Decent
 {
+
 	namespace DhtClient
 	{
 		class DhtClientApp;
 
-		JNIEXPORT DhtClientApp& JNICALL GetDhtClientApp();
+		JNIEXPORT void* JNICALL Initialize();
+		JNIEXPORT DhtClientApp* JNICALL GetNewDhtClientApp();
 	}
 }
