@@ -6,3 +6,7 @@
 	path = libs/decent-ra-api
 	url = git@github.com:zhenghaven/decent-ra-api.git
 	branch = master
+[submodule "benchmarks/YCSB"]
+	path = benchmarks/YCSB
+	url = https://github.com/xweichu/YCSB.git
+	branch = master
