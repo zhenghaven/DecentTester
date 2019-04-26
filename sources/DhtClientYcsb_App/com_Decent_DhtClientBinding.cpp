@@ -1,4 +1,4 @@
-#include "../DhtClientYcsb_Java/com_Decent_DhtClientBinding.h"
+#include "../DhtClientYcsb_Java/com_decent_dht_DhtClientBinding.h"
 
 #include <string>
 
@@ -24,7 +24,7 @@ namespace
 }
 
 
-JNIEXPORT void JNICALL Java_com_Decent_DhtClientBinding_init(JNIEnv * env, jclass)
+JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_init(JNIEnv * env, jclass)
 {
 	try
 	{
@@ -37,12 +37,12 @@ JNIEXPORT void JNICALL Java_com_Decent_DhtClientBinding_init(JNIEnv * env, jclas
 	}
 }
 
-JNIEXPORT void JNICALL Java_com_Decent_DhtClientBinding_cleanup(JNIEnv * env, jclass)
+JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_cleanup(JNIEnv * env, jclass)
 {
 	return;
 }
 
-JNIEXPORT jstring JNICALL Java_com_Decent_DhtClientBinding_read(JNIEnv * env, jclass, jstring key)
+JNIEXPORT jstring JNICALL Java_com_decent_dht_DhtClientBinding_read(JNIEnv * env, jclass, jstring key)
 {
 	const char * inCStr = env->GetStringUTFChars(key, NULL);
 	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return nullptr; }
@@ -63,7 +63,7 @@ JNIEXPORT jstring JNICALL Java_com_Decent_DhtClientBinding_read(JNIEnv * env, jc
 
 }
 
-JNIEXPORT void JNICALL Java_com_Decent_DhtClientBinding_insert(JNIEnv * env, jclass, jstring key, jstring val)
+JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_insert(JNIEnv * env, jclass, jstring key, jstring val)
 {
 	const char * inCStr = env->GetStringUTFChars(key, NULL);
 	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return; }
@@ -85,7 +85,7 @@ JNIEXPORT void JNICALL Java_com_Decent_DhtClientBinding_insert(JNIEnv * env, jcl
 	}
 }
 
-JNIEXPORT void JNICALL Java_com_Decent_DhtClientBinding_delete(JNIEnv * env, jclass, jstring key)
+JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_delete(JNIEnv * env, jclass, jstring key)
 {
 	const char * inCStr = env->GetStringUTFChars(key, NULL);
 	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return; }
