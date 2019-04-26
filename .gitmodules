@@ -8,5 +8,5 @@
 	branch = master
 [submodule "benchmarks/YCSB"]
 	path = benchmarks/YCSB
-	url = https://github.com/xweichu/YCSB.git
+	url = git@github.com:xweichu/YCSB.git
 	branch = master
