@@ -1,4 +1,4 @@
-package com.Decent;
+package com.decent;
 
 public class DhtClientBinding
 {
