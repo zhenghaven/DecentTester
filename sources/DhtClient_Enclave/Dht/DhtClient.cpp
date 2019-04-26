@@ -1,6 +1,5 @@
 #include "DhtClient.h"
 
-#include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/MbedTls/BigNumber.h>
 
 #include <DecentApi/Common/Net/TlsCommLayer.h>
@@ -36,7 +35,7 @@ uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& ke
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	PRINT_I("Finding Successor of %s.", ConstBigNumber(key).Get().ToBigEndianHexStr().c_str());
+	//PRINT_I("Finding Successor of %s.", ConstBigNumber(key).Get().ToBigEndianHexStr().c_str());
 
 	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtNode();
 	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
