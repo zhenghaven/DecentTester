@@ -11,9 +11,11 @@ endif()
 
 if(MSVC)
 	set(JAVAC_BIN_PATH ${JAVA_HOME_DIR}/bin/javac.exe)
+	set(JAR_BIN_PATH ${JAVA_HOME_DIR}/bin/jar.exe)
 	set(JAVA_INCLUDE_OS win32)
 else()
 	set(JAVAC_BIN_PATH ${JAVA_HOME_DIR}/bin/javac)
+	set(JAR_BIN_PATH ${JAVA_HOME_DIR}/bin/jar)
 	set(JAVA_INCLUDE_OS linux)
 endif()
 

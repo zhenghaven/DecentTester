@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.11)
 #==========================================================
 
 option(DHT_YCSB_TEST "Test set option: Decent DHT test with YCSB" ON)
+set(YCSB_ROOT_DIR ${CMAKE_SOURCE_DIR}/benchmarks/YCSB)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(HUNTER_BOOST_RUNTIME_STATIC ON CACHE BOOL "Switch for using boost runtime static linking." FORCE)
@@ -17,6 +18,9 @@ endif()
 # Automated part:
 if(${DHT_YCSB_TEST})
 	set(DHT_TEST_ENCLAVE ON)
+	if(${DHT_YCSB_TEST} AND NOT EXISTS ${YCSB_ROOT_DIR}/pom.xml)
+		message(FATAL_ERROR "YCSB test is on, but the root directory of YCSB couldn't be found!")
+	endif()
 endif()
 #==========================================================
 #   Setup Hunter
@@ -219,9 +223,9 @@ else()
 endif()
 
 if(MSVC)
-	set(ENCLAVE_BINARY_SUBDIRECTORY "$<CONFIG>")
+	set(BINARY_SUBDIRECTORY "$<CONFIG>")
 else()
-	set(ENCLAVE_BINARY_SUBDIRECTORY "")
+	set(BINARY_SUBDIRECTORY "")
 endif()
 
 #==========================================================

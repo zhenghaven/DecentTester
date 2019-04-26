@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.8)
 
 set(PROJECT_NAME DhtClientYcsb)
 set(ENCLAVE_PROJECT_NAME DhtClientSgx)
+set(YCSB_TARGET_LIBS_DIR ${YCSB_ROOT_DIR}/decentdht/libs)
+set(${PROJECT_NAME}_JAR_NAME dht-0.1.0.jar)
 
 # Source Files:
 set(ENCLAVE_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../DhtClient_Enclave)
@@ -92,3 +94,30 @@ add_custom_command(TARGET ${PROJECT_NAME}_Debugger
 	COMMAND ${CMAKE_COMMAND} -E copy "${ENCLAVE_BIN_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED}" "${CMAKE_CURRENT_BINARY_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED}"
 )
 add_dependencies(${PROJECT_NAME}_Debugger ${ENCLAVE_PROJECT_NAME}_Enclave)
+
+###########################################################
+### Installer
+###########################################################
+
+set(${PROJECT_NAME}_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_App$<$<CONFIG:Debug>:${CMAKE_DEBUG_POSTFIX}>${CMAKE_SHARED_LIBRARY_SUFFIX})
+set(${PROJECT_NAME}_SHARED_LIB_NAMET ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_App${CMAKE_SHARED_LIBRARY_SUFFIX})
+set(${PROJECT_NAME}_Java_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../${PROJECT_NAME}_Java)
+
+add_custom_command(OUTPUT #${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED} 
+	                      ${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_JAR_NAME} 
+	                      ${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_SHARED_LIB_NAMET} 
+	               COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED}" 
+	                                                "${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED}"
+	               COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${BINARY_SUBDIRECTORY}/${${PROJECT_NAME}_SHARED_LIB_NAME}" 
+	                                                "${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_SHARED_LIB_NAMET}"
+	               COMMAND ${CMAKE_COMMAND} -E copy "${${PROJECT_NAME}_Java_SRC_DIR}/${${PROJECT_NAME}_JAR_NAME}" 
+	                                                "${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_JAR_NAME}"
+	               WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+	               DEPENDS ${PROJECT_NAME}_Debugger
+	               COMMENT "Installing JNI and shared libraries..."
+)
+
+add_custom_target(${PROJECT_NAME}_Install DEPENDS ${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_ENCLAVE_SIGNED} 
+	                                              ${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_JAR_NAME} 
+	                                              ${YCSB_TARGET_LIBS_DIR}/${${PROJECT_NAME}_SHARED_LIB_NAMET})
+set_target_properties(${PROJECT_NAME}_Install PROPERTIES FOLDER "${PROJECT_NAME}")
