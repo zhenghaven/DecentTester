@@ -20,7 +20,7 @@ namespace Decent
 		{
 			void SetConfigManager(const Decent::Tools::ConfigManager& mgrRef);
 
-			std::unique_ptr<Decent::Net::Connection> GetConnection2DecentDhtNode();
+			std::unique_ptr<Decent::Net::Connection> GetConnection2DecentDhtNode(uint64_t& outAddr);
 			std::unique_ptr<Decent::Net::Connection> GetConnection2DecentDhtStore(uint64_t addr);
 		}
 	}

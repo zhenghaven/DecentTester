@@ -1,1 +1,1 @@
-#include <DecentApi/DecentAppEnclave/DefaultStatesConfig.h>
+#include "Dht/DefaultStatesConfig.h"

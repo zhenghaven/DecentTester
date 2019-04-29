@@ -11,7 +11,7 @@ enclave
 
 	untrusted
 	{
-		void* ocall_dht_client_cnt_mgr_get_dht_node();
+		void* ocall_dht_client_cnt_mgr_get_dht_node([out] uint64_t* out_addr);
 		void* ocall_dht_client_cnt_mgr_get_dht_store(uint64_t address);
 
 		void* ocall_dht_client_malloc(size_t size);

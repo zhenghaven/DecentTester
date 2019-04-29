@@ -1,33 +1,42 @@
 #include "DhtClient.h"
 
+#include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/MbedTls/BigNumber.h>
 
 #include <DecentApi/Common/Net/TlsCommLayer.h>
-#include <DecentApi/Common/Ra/TlsConfigWithName.h>
-#include <DecentApi/CommonEnclave/Net/EnclaveNetConnector.h>
-#include <DecentApi/DecentAppEnclave/AppStatesSingleton.h>
+#include <DecentApi/Common/Net/ConnectionBase.h>
 
 #include "AppNames.h"
 #include "FuncNums.h"
-#include "DhtConnection.h"
+#include "DhtClientConnection.h"
+#include "DhtClientStates.h"
+#include "DhtClientStatesSingleton.h"
+#include "DhtClientConnectionPool.h"
 
 using namespace Decent;
-using namespace Decent::Ra;
+//using namespace Decent::Ra;
 using namespace Decent::Net;
-using namespace Decent::Dht;
+using namespace Decent::DhtClient;
 
 using namespace Decent::MbedTlsObj;
 
 namespace
 {
-	static AppStates& gs_state = GetAppStateSingleton();
+	static States& gs_state = DhtClient::GetStatesSingleton();
 
 	static char gsk_ack[] = "ACK";
 
-	std::shared_ptr<TlsConfigWithName> GetTlsCfg2Dht()
+	uint64_t SetupFirstNodeAddr()
 	{
-		static std::shared_ptr<TlsConfigWithName> tlsCfg = std::make_shared<TlsConfigWithName>(gs_state, TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT);
-		return tlsCfg;
+		uint64_t res = 0;
+		std::unique_ptr<ConnectionBase> cnt = GetConnection2DhtNode(res);
+		return res;
+	}
+
+	uint64_t GetFirstNodeAddr()
+	{
+		static uint64_t res = SetupFirstNodeAddr();
+		return res;
 	}
 }
 
@@ -37,19 +46,20 @@ uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& ke
 
 	//PRINT_I("Finding Successor of %s.", ConstBigNumber(key).Get().ToBigEndianHexStr().c_str());
 
-	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtNode();
-	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
+	CntPair cntPair = gs_state.GetConnectionPool().Get(GetFirstNodeAddr(), gs_state);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	tls.SendStruct(k_findSuccessor);
+	comm.SendStruct(k_findSuccessor);
 
-	tls.SendRaw(key.data(), key.size());
+	comm.SendRaw(key.data(), key.size());
 
 	std::array<uint8_t, 32> resId;
 	uint64_t addr = 0;
 
-	tls.ReceiveRaw(resId.data(), resId.size());
-	tls.ReceiveStruct(addr);
+	comm.ReceiveRaw(resId.data(), resId.size());
+	comm.ReceiveStruct(addr);
 
+	gs_state.GetConnectionPool().Put(GetFirstNodeAddr(), std::move(cntPair));
 	return addr;
 }
 
@@ -57,70 +67,80 @@ void Dht::GetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtStore(addr);
-	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
+	CntPair cntPair = gs_state.GetConnectionPool().Get(addr, gs_state);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	tls.SendStruct(k_getData);
+	comm.SendStruct(k_getData);
 
-	tls.SendRaw(key.data(), key.size());
+	comm.SendRaw(key.data(), key.size());
 
-	tls.ReceiveMsg(outData);
+	comm.ReceiveMsg(outData);
+
+	gs_state.GetConnectionPool().Put(addr, std::move(cntPair));
 }
 
 void Dht::SetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtStore(addr);
-	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
+	CntPair cntPair = gs_state.GetConnectionPool().Get(addr, gs_state);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	tls.SendStruct(k_setData);
+	comm.SendStruct(k_setData);
 
-	tls.SendRaw(key.data(), key.size());
-	tls.SendMsg(data);
+	comm.SendRaw(key.data(), key.size());
+	comm.SendMsg(data);
 
-	tls.ReceiveStruct(gsk_ack);
+	comm.ReceiveStruct(gsk_ack);
+
+	gs_state.GetConnectionPool().Put(addr, std::move(cntPair));
 }
 
 void Dht::GetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, std::string & outData)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtStore(addr);
-	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
+	CntPair cntPair = gs_state.GetConnectionPool().Get(addr, gs_state);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	tls.SendStruct(k_getData);
+	comm.SendStruct(k_getData);
 
-	tls.SendRaw(key.data(), key.size());
+	comm.SendRaw(key.data(), key.size());
 
-	tls.ReceiveMsg(outData);
+	comm.ReceiveMsg(outData);
+
+	gs_state.GetConnectionPool().Put(addr, std::move(cntPair));
 }
 
 void Dht::SetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, const std::string & data)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtStore(addr);
-	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
+	CntPair cntPair = gs_state.GetConnectionPool().Get(addr, gs_state);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	tls.SendStruct(k_setData);
+	comm.SendStruct(k_setData);
 
-	tls.SendRaw(key.data(), key.size());
-	tls.SendMsg(data);
+	comm.SendRaw(key.data(), key.size());
+	comm.SendMsg(data);
 
-	tls.ReceiveStruct(gsk_ack);
+	comm.ReceiveStruct(gsk_ack);
+
+	gs_state.GetConnectionPool().Put(addr, std::move(cntPair));
 }
 
 void Dht::DelData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	std::unique_ptr<EnclaveNetConnector> cnt = GetConnection2DhtStore(addr);
-	TlsCommLayer tls(cnt->Get(), GetTlsCfg2Dht(), true);
+	CntPair cntPair = gs_state.GetConnectionPool().Get(addr, gs_state);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	tls.SendStruct(k_delData);
+	comm.SendStruct(k_delData);
 
-	tls.SendRaw(key.data(), key.size());
+	comm.SendRaw(key.data(), key.size());
 
-	tls.ReceiveStruct(gsk_ack);
+	comm.ReceiveStruct(gsk_ack);
+
+	gs_state.GetConnectionPool().Put(addr, std::move(cntPair));
 }

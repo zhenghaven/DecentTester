@@ -2,7 +2,7 @@
 
 namespace Decent
 {
-	namespace Dht
+	namespace DhtClient
 	{
 		namespace AppNames
 		{

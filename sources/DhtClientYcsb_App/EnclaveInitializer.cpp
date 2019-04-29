@@ -25,7 +25,7 @@ namespace
 
 	std::string GetConfigJsonStr()
 	{
-		DiskFile file(gsk_configFilePaht, FileBase::Mode::Read);
+		DiskFile file(gsk_configFilePaht, FileBase::Mode::Read, false);
 
 		std::string res;
 		res.resize(file.GetFileSize());
@@ -66,7 +66,7 @@ namespace
 	Initializer::Initializer()
 	{
 		ConnectionManager::SetConfigManager(GetConfigManager());
-		GetDecentServerConnection()->SendPack(Message::LoadWhiteList(gsk_whiteListKey, GetConfigManager().GetLoadedWhiteListStr()));
+		GetDecentServerConnection()->SendSmartMsg(Message::LoadWhiteList(gsk_whiteListKey, GetConfigManager().GetLoadedWhiteListStr()));
 	}
 
 	Initializer::~Initializer()
@@ -82,5 +82,6 @@ JNIEXPORT void* JNICALL DhtClient::Initialize()
 
 JNIEXPORT DhtClientApp* JNICALL DhtClient::GetNewDhtClientApp()
 {
+	DhtClient::Initialize();
 	return new DhtClientApp(ENCLAVE_FILENAME, KnownFolderType::LocalAppDataEnclave, TOKEN_FILENAME, gsk_whiteListKey, *GetDecentServerConnection());
 }

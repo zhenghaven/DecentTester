@@ -6,9 +6,9 @@
 
 using namespace Decent::DhtClient;
 
-extern "C" void* ocall_dht_client_cnt_mgr_get_dht_node()
+extern "C" void* ocall_dht_client_cnt_mgr_get_dht_node(uint64_t* out_addr)
 {
-	return ConnectionManager::GetConnection2DecentDhtNode().release();
+	return ConnectionManager::GetConnection2DecentDhtNode(*out_addr).release();
 }
 
 extern "C" void* ocall_dht_client_cnt_mgr_get_dht_store(uint64_t address)

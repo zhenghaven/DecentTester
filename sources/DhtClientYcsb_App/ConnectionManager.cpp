@@ -23,7 +23,7 @@ namespace
 
 			if (connection)
 			{
-				connection->SendPack(hsMsg);
+				connection->SendSmartMsg(hsMsg);
 			}
 			return std::move(connection);
 		}
@@ -42,7 +42,7 @@ namespace
 
 			if (connection)
 			{
-				connection->SendPack(hsMsg);
+				connection->SendSmartMsg(hsMsg);
 			}
 			return std::move(connection);
 		}
@@ -59,10 +59,10 @@ void ConnectionManager::SetConfigManager(const ConfigManager & mgrRef)
 	gsk_configMgrPtr = &mgrRef;
 }
 
-std::unique_ptr<Decent::Net::Connection> ConnectionManager::GetConnection2DecentDhtNode()
+std::unique_ptr<Decent::Net::Connection> ConnectionManager::GetConnection2DecentDhtNode(uint64_t& outAddr)
 {
-	const ConfigItem& dhtItem = gsk_configMgrPtr->GetItem(Decent::Dht::AppNames::sk_decentDHT);
-
+	const ConfigItem& dhtItem = gsk_configMgrPtr->GetItem(AppNames::sk_decentDHT);
+	outAddr = TCPConnection::CombineIpAndPort(TCPConnection::GetIpAddressFromStr(dhtItem.GetAddr()), dhtItem.GetPort());
 	return InternalGetConnection(dhtItem, Decent::Dht::FromApp());
 }
 
