@@ -46,7 +46,8 @@ uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& ke
 
 	//PRINT_I("Finding Successor of %s.", ConstBigNumber(key).Get().ToBigEndianHexStr().c_str());
 
-	CntPair cntPair = gs_state.GetConnectionPool().Get(GetFirstNodeAddr(), gs_state);
+	uint64_t connectedAddr = 0;
+	CntPair cntPair = gs_state.GetConnectionPool().GetAny(GetFirstNodeAddr(), gs_state, connectedAddr);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_findSuccessor);
@@ -59,7 +60,7 @@ uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& ke
 	comm.ReceiveRaw(resId.data(), resId.size());
 	comm.ReceiveStruct(addr);
 
-	gs_state.GetConnectionPool().Put(GetFirstNodeAddr(), std::move(cntPair));
+	gs_state.GetConnectionPool().Put(connectedAddr, std::move(cntPair));
 	return addr;
 }
 
