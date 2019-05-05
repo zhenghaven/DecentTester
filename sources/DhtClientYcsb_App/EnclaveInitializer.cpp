@@ -7,6 +7,7 @@
 #include <DecentApi/CommonApp/Ra/Messages.h>
 #include <DecentApi/CommonApp/Tools/DiskFile.h>
 #include <DecentApi/CommonApp/Tools/ConfigManager.h>
+#include <DecentApi/CommonApp/Tools/FileSystemUtil.h>
 #include <DecentApi/CommonApp/Net/TCPConnection.h>
 
 #include "ConnectionManager.h"
@@ -83,5 +84,6 @@ JNIEXPORT void* JNICALL DhtClient::Initialize()
 JNIEXPORT DhtClientApp* JNICALL DhtClient::GetNewDhtClientApp()
 {
 	DhtClient::Initialize();
-	return new DhtClientApp(ENCLAVE_FILENAME, KnownFolderType::LocalAppDataEnclave, TOKEN_FILENAME, gsk_whiteListKey, *GetDecentServerConnection());
+	boost::filesystem::path tokenPath = GetKnownFolderPath(KnownFolderType::LocalAppDataEnclave).append(TOKEN_FILENAME);
+	return new DhtClientApp(ENCLAVE_FILENAME, tokenPath, gsk_whiteListKey, *GetDecentServerConnection());
 }
