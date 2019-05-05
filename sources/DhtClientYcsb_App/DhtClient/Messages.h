@@ -4,7 +4,7 @@
 
 namespace Decent
 {
-	namespace Dht
+	namespace DhtClient
 	{
 		class FromApp : public Decent::Net::SmartMessages
 		{

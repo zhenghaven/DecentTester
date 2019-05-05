@@ -1,19 +1,79 @@
-#include "ConnectionManager.h"
+#include <memory>
 
-#include<memory>
+//#include <DecentApi/Common/Common.h>
 
-#include <DecentApi/CommonApp/Net/Connection.h>
+#include <DecentApi/Common/Net/ConnectionBase.h>
+#include <DecentApi/Common/Net/CntPoolConnection.h>
 
+#include "DhtClient/ConnectionPool.h"
+#include "DhtClient/Messages.h"
+
+using namespace Decent;
 using namespace Decent::DhtClient;
 
-extern "C" void* ocall_dht_client_cnt_mgr_get_dht_node(uint64_t* out_addr)
+extern "C" void* ocall_dht_client_cnt_pool_get_dht_any(void* cnt_pool_ptr, uint64_t* address)
 {
-	return ConnectionManager::GetConnection2DecentDhtNode(*out_addr).release();
+	if (!cnt_pool_ptr)
+	{
+		return nullptr;
+	}
+
+	ConnectionPool& cntPoolRef = *static_cast<ConnectionPool*>(cnt_pool_ptr);
+
+	try
+	{
+		std::pair<std::unique_ptr<Net::ConnectionBase>, uint64_t> cntPair = cntPoolRef.GetAnyDhtNode();
+
+		if (!cntPair.first)
+		{
+			return nullptr;
+		}
+
+		cntPair.first->SendPack(FromApp().ToJsonString());
+
+		if (address)
+		{
+			*address = cntPair.second;
+		}
+
+		return new Net::CntPoolConnection<uint64_t>(cntPair.second, std::move(cntPair.first), cntPoolRef.GetSharedPtr());
+	}
+	catch (const std::exception& e)
+	{
+		(void)e;
+		//PRINT_W("Failed to establish connection. (Err Msg: %s)", e.what());
+		return nullptr;
+	}
 }
 
-extern "C" void* ocall_dht_client_cnt_mgr_get_dht_store(uint64_t address)
+extern "C" void* ocall_dht_client_cnt_pool_get_dht(void* cnt_pool_ptr, uint64_t address)
 {
-	return ConnectionManager::GetConnection2DecentDhtStore(address).release();
+	if (!cnt_pool_ptr)
+	{
+		return nullptr;
+	}
+
+	ConnectionPool& cntPoolRef = *static_cast<ConnectionPool*>(cnt_pool_ptr);
+
+	try
+	{
+		std::unique_ptr<Net::ConnectionBase> cnt = cntPoolRef.Get(address);
+
+		if (!cnt)
+		{
+			return nullptr;
+		}
+
+		cnt->SendPack(FromApp().ToJsonString());
+
+		return new Net::CntPoolConnection<uint64_t>(address, std::move(cnt), cntPoolRef.GetSharedPtr());
+	}
+	catch (const std::exception& e)
+	{
+		(void)e;
+		//PRINT_W("Failed to establish connection. (Err Msg: %s)", e.what());
+		return nullptr;
+	}
 }
 
 extern "C" void* ocall_dht_client_malloc(size_t size)

@@ -6,31 +6,31 @@ namespace Decent
 {
 	namespace DhtClient
 	{
-		class ConnectionPool;
+		class ConnectionManager;
 
 		class States : public Ra::AppStates
 		{
 		public:
-			States(Ra::AppCertContainer & certCntnr, Ra::KeyContainer & keyCntnr, Ra::WhiteList::DecentServer & serverWl, GetLoadedWlFunc getLoadedFunc, ConnectionPool& cntPool) :
+			States(Ra::AppCertContainer & certCntnr, Ra::KeyContainer & keyCntnr, Ra::WhiteList::DecentServer & serverWl, GetLoadedWlFunc getLoadedFunc, ConnectionManager& cntMgr) :
 				AppStates(certCntnr, keyCntnr, serverWl, getLoadedFunc),
-				m_cntPool(cntPool)
+				m_cntMgr(cntMgr)
 			{}
 
 			virtual ~States()
 			{}
 
-			const ConnectionPool& GetConnectionPool() const
+			const ConnectionManager& GetConnectionMgr() const
 			{
-				return m_cntPool;
+				return m_cntMgr;
 			}
 
-			ConnectionPool& GetConnectionPool()
+			ConnectionManager& GetConnectionMgr()
 			{
-				return m_cntPool;
+				return m_cntMgr;
 			}
 
 		private:
-			ConnectionPool& m_cntPool;
+			ConnectionManager& m_cntMgr;
 		};
 	}
 }

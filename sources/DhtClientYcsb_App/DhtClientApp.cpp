@@ -12,6 +12,18 @@ DhtClientApp::~DhtClientApp()
 {
 }
 
+void DhtClientApp::Init(std::shared_ptr<ConnectionPool> cntPool)
+{
+	int enclaveRet = true;
+	sgx_status_t sgxRet = ecall_dht_client_init(GetEnclaveId(), &enclaveRet, cntPool.get());
+	DECENT_CHECK_SGX_STATUS_ERROR(sgxRet, ecall_dht_client_init);
+
+	if (!enclaveRet)
+	{
+		throw Decent::RuntimeException("Failed to initilize DhtClientApp");
+	}
+}
+
 void DhtClientApp::Insert(const std::string & key, const std::string & val)
 {
 	int retValue = false;

@@ -11,14 +11,16 @@ enclave
 
 	untrusted
 	{
-		void* ocall_dht_client_cnt_mgr_get_dht_node([out] uint64_t* out_addr);
-		void* ocall_dht_client_cnt_mgr_get_dht_store(uint64_t address);
+		void* ocall_dht_client_cnt_pool_get_dht_any([user_check] void* cnt_pool_ptr, [out] uint64_t* address);
+		void* ocall_dht_client_cnt_pool_get_dht([user_check] void* cnt_pool_ptr, uint64_t address);
 
 		void* ocall_dht_client_malloc(size_t size);
 	};
 
 	trusted
 	{
+		public int ecall_dht_client_init([user_check] void* cnt_pool_ptr);
+		
 		public int ecall_dht_client_insert([in, size=key_size] const void* key_buf, size_t key_size, [in, size=val_size] const void* val_buf, size_t val_size);
 		public int ecall_dht_client_read([in, size=key_size] const void* key_buf, size_t key_size, [out] void** out_val_buf, [out] size_t* out_val_size);
 		public int ecall_dht_client_delete([in, size=key_size] const void* key_buf, size_t key_size);

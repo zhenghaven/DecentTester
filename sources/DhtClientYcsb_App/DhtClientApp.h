@@ -6,12 +6,16 @@ namespace Decent
 {
 	namespace DhtClient
 	{
+		class ConnectionPool;
+
 		class DhtClientApp : public Decent::RaSgx::DecentApp
 		{
 		public:
 			using DecentApp::DecentApp;
 
 			virtual ~DhtClientApp();
+
+			void Init(std::shared_ptr<ConnectionPool> cntPool);
 
 			virtual void Insert(const std::string& key, const std::string& val);
 

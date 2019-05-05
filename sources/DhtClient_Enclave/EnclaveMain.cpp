@@ -6,23 +6,32 @@
 #include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/GeneralKeyTypes.h>
 #include <DecentApi/Common/MbedTls/Hasher.h>
-#include <DecentApi/DecentAppEnclave/AppStatesSingleton.h>
 
 #include "Dht/DhtClient.h"
+#include "Dht/DhtClientStates.h"
+#include "Dht/DhtClientStatesSingleton.h"
+#include "Dht/ConnectionManager.h"
 
 #include "Enclave_t.h"
 
 using namespace Decent;
+using namespace Decent::DhtClient;
 using namespace Decent::Ra;
 using namespace Decent::Dht;
 using namespace Decent::MbedTlsObj;
 
 namespace
 {
-	static AppStates& gs_state = GetAppStateSingleton();
+	static DhtClient::States& gs_state = GetStatesSingleton();
 
 	static char gs_ack[] = "ACK";
 
+}
+
+extern "C" int ecall_dht_client_init(void* cnt_pool_ptr)
+{
+	gs_state.GetConnectionMgr().InitConnectionPoolPtr(cnt_pool_ptr);
+	return true;
 }
 
 extern "C" int ecall_dht_client_insert(const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)

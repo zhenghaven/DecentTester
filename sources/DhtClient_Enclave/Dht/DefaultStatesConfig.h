@@ -7,7 +7,7 @@
 #include <DecentApi/Common/Ra/WhiteList/LoadedList.h>
 #include <DecentApi/Common/Ra/WhiteList/DecentServer.h>
 
-#include "DhtClientConnectionPool.h"
+#include "ConnectionManager.h"
 #include "DhtClientStatesSingleton.h"
 
 using namespace Decent;
@@ -40,16 +40,16 @@ namespace
 		return inst;
 	}
 
-	static ConnectionPool& GetConnectionPool()
+	static ConnectionManager& GetConnectionMgr()
 	{
-		static ConnectionPool inst(5, 5);
+		static ConnectionManager inst(50);
 		return inst;
 	}
 }
 
 DhtClient::States& DhtClient::GetStatesSingleton()
 {
-	static States state(GetCertContainer(), GetKeyContainer(), GetServerWhiteList(), &GetLoadedWhiteListImpl, GetConnectionPool());
+	static States state(GetCertContainer(), GetKeyContainer(), GetServerWhiteList(), &GetLoadedWhiteListImpl, GetConnectionMgr());
 
 	return state;
 }

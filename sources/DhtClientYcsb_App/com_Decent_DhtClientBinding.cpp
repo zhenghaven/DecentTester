@@ -6,6 +6,7 @@
 
 #include "DhtClientApp.h"
 #include "EnclaveInitializer.h"
+#include "DhtClientAppPkg.h"
 
 using namespace Decent::DhtClient;
 
@@ -87,8 +88,8 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_init(JNIEnv * env, j
 {
 	try
 	{
-		DhtClientApp* decentapp = GetNewDhtClientApp();
-		env->SetLongField(obj, gsk_bindingClassCPtr, Ptr2Long(decentapp));
+		DhtClientAppPkg* decentappPkg = GetNewDhtClientAppPkg(100);
+		env->SetLongField(obj, gsk_bindingClassCPtr, Ptr2Long(decentappPkg));
 	}
 	catch (const std::exception& e)
 	{
@@ -101,7 +102,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_cleanup(JNIEnv * env
 {
 	jlong cPtr = env->GetLongField(obj, gsk_bindingClassCPtr);
 
-	delete static_cast<DhtClientApp*>(Long2Ptr(cPtr));
+	delete static_cast<DhtClientAppPkg*>(Long2Ptr(cPtr));
 
 	return;
 }
@@ -110,7 +111,7 @@ JNIEXPORT jstring JNICALL Java_com_decent_dht_DhtClientBinding_read(JNIEnv * env
 {
 	jlong cPtr = env->GetLongField(obj, gsk_bindingClassCPtr);
 	if(Long2Ptr(cPtr) == nullptr) { ThrowDhtClientBindingException(env, "Please Initialize first!"); return nullptr; }
-	DhtClientApp& decentapp = *static_cast<DhtClientApp*>(Long2Ptr(cPtr));
+	DhtClientAppPkg& decentappPkg = *static_cast<DhtClientAppPkg*>(Long2Ptr(cPtr));
 
 	const char * inCStr = env->GetStringUTFChars(key, NULL);
 	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return nullptr; }
@@ -119,7 +120,7 @@ JNIEXPORT jstring JNICALL Java_com_decent_dht_DhtClientBinding_read(JNIEnv * env
 
 	try
 	{
-		std::string val = decentapp.Read(keyStr);
+		std::string val = decentappPkg.m_app->Read(keyStr);
 
 		return env->NewStringUTF(val.c_str());
 	}
@@ -135,7 +136,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_insert(JNIEnv * env,
 {
 	jlong cPtr = env->GetLongField(obj, gsk_bindingClassCPtr);
 	if (Long2Ptr(cPtr) == nullptr) { ThrowDhtClientBindingException(env, "Please Initialize first!"); return; }
-	DhtClientApp& decentapp = *static_cast<DhtClientApp*>(Long2Ptr(cPtr));
+	DhtClientAppPkg& decentappPkg = *static_cast<DhtClientAppPkg*>(Long2Ptr(cPtr));
 
 	const char * inCStr = env->GetStringUTFChars(key, NULL);
 	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return; }
@@ -149,7 +150,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_insert(JNIEnv * env,
 
 	try
 	{
-		decentapp.Insert(keyStr, valStr);
+		decentappPkg.m_app->Insert(keyStr, valStr);
 	}
 	catch (const std::exception& e)
 	{
@@ -161,7 +162,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_delete(JNIEnv * env,
 {
 	jlong cPtr = env->GetLongField(obj, gsk_bindingClassCPtr);
 	if (Long2Ptr(cPtr) == nullptr) { ThrowDhtClientBindingException(env, "Please Initialize first!"); return; }
-	DhtClientApp& decentapp = *static_cast<DhtClientApp*>(Long2Ptr(cPtr));
+	DhtClientAppPkg& decentappPkg = *static_cast<DhtClientAppPkg*>(Long2Ptr(cPtr));
 
 	const char * inCStr = env->GetStringUTFChars(key, NULL);
 	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return; }
@@ -170,7 +171,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_delete(JNIEnv * env,
 
 	try
 	{
-		decentapp.Delete(keyStr);
+		decentappPkg.m_app->Delete(keyStr);
 	}
 	catch (const std::exception& e)
 	{

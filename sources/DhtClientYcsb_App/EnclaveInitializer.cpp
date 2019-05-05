@@ -3,6 +3,7 @@
 #include <boost/filesystem.hpp>
 
 #include <DecentApi/Common/Ra/WhiteList/WhiteList.h>
+#include <DecentApi/Common/make_unique.h>
 
 #include <DecentApi/CommonApp/Ra/Messages.h>
 #include <DecentApi/CommonApp/Tools/DiskFile.h>
@@ -10,8 +11,9 @@
 #include <DecentApi/CommonApp/Tools/FileSystemUtil.h>
 #include <DecentApi/CommonApp/Net/TCPConnection.h>
 
-#include "ConnectionManager.h"
+#include "DhtClient/ConnectionPool.h"
 #include "DhtClientApp.h"
+#include "DhtClientAppPkg.h"
 
 using namespace Decent;
 using namespace Decent::Tools;
@@ -66,7 +68,6 @@ namespace
 
 	Initializer::Initializer()
 	{
-		ConnectionManager::SetConfigManager(GetConfigManager());
 		GetDecentServerConnection()->SendSmartMsg(Message::LoadWhiteList(gsk_whiteListKey, GetConfigManager().GetLoadedWhiteListStr()));
 	}
 
@@ -81,9 +82,16 @@ JNIEXPORT void* JNICALL DhtClient::Initialize()
 	return &inst;
 }
 
-JNIEXPORT DhtClientApp* JNICALL DhtClient::GetNewDhtClientApp()
+JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPoolSize)
 {
 	DhtClient::Initialize();
 	boost::filesystem::path tokenPath = GetKnownFolderPath(KnownFolderType::LocalAppDataEnclave).append(TOKEN_FILENAME);
-	return new DhtClientApp(ENCLAVE_FILENAME, tokenPath, gsk_whiteListKey, *GetDecentServerConnection());
+
+	DhtClientAppPkg* res = new DhtClientAppPkg;
+	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager());
+	res->m_app = Tools::make_unique<DhtClientApp>(ENCLAVE_FILENAME, tokenPath, gsk_whiteListKey, *GetDecentServerConnection());
+
+	res->m_app->Init(res->m_cntPool);
+
+	return res;
 }

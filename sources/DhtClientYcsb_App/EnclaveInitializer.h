@@ -5,9 +5,9 @@ namespace Decent
 
 	namespace DhtClient
 	{
-		class DhtClientApp;
+		struct DhtClientAppPkg;
 
 		JNIEXPORT void* JNICALL Initialize();
-		JNIEXPORT DhtClientApp* JNICALL GetNewDhtClientApp();
+		JNIEXPORT DhtClientAppPkg* JNICALL GetNewDhtClientAppPkg(size_t cntPoolSize);
 	}
 }

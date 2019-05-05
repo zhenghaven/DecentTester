@@ -2,7 +2,7 @@
 
 #include <json/json.h>
 
-using namespace Decent::Dht;
+using namespace Decent::DhtClient;
 
 constexpr char const FromApp::sk_ValueCat[];
 
