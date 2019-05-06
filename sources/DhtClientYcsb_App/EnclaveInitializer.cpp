@@ -2,10 +2,10 @@
 
 #include <boost/filesystem.hpp>
 
-#include <DecentApi/Common/Ra/WhiteList/WhiteList.h>
 #include <DecentApi/Common/make_unique.h>
+#include <DecentApi/Common/Ra/RequestCategory.h>
+#include <DecentApi/Common/Ra/WhiteList/WhiteList.h>
 
-#include <DecentApi/CommonApp/Ra/Messages.h>
 #include <DecentApi/CommonApp/Tools/DiskFile.h>
 #include <DecentApi/CommonApp/Tools/ConfigManager.h>
 #include <DecentApi/CommonApp/Tools/FileSystemUtil.h>
@@ -50,7 +50,7 @@ namespace
 		return decentServerItem;
 	}
 
-	std::unique_ptr<Connection> GetDecentServerConnection()
+	std::unique_ptr<ConnectionBase> GetDecentServerConnection()
 	{
 		static uint32_t serverIp = TCPConnection::GetIpAddressFromStr(GetDecentServerItem().GetAddr());
 		return std::make_unique<TCPConnection>(serverIp, GetDecentServerItem().GetPort());
@@ -68,7 +68,12 @@ namespace
 
 	Initializer::Initializer()
 	{
-		GetDecentServerConnection()->SendSmartMsg(Message::LoadWhiteList(gsk_whiteListKey, GetConfigManager().GetLoadedWhiteListStr()));
+		std::unique_ptr<ConnectionBase> serverCon = GetDecentServerConnection();
+		serverCon->SendPack(Ra::RequestCategory::sk_loadWhiteList);
+		serverCon->SendPack(gsk_whiteListKey);
+		serverCon->SendPack(GetConfigManager().GetLoadedWhiteListStr());
+		char ackMsg[] = "ACK";
+		serverCon->ReceiveRawGuarantee(&ackMsg, sizeof(ackMsg));
 	}
 
 	Initializer::~Initializer()

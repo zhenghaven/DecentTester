@@ -74,7 +74,7 @@ void DhtClientApp::Delete(const std::string & key)
 	}
 }
 
-bool DhtClientApp::ProcessSmartMessage(const std::string & category, const Json::Value & jsonMsg, Decent::Net::Connection & connection)
+bool DhtClientApp::ProcessSmartMessage(const std::string & category, ConnectionBase & connection)
 {
-	return Decent::RaSgx::DecentApp::ProcessSmartMessage(category, jsonMsg, connection);
+	return Decent::RaSgx::DecentApp::ProcessSmartMessage(category, connection);
 }

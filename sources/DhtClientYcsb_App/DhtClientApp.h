@@ -23,7 +23,7 @@ namespace Decent
 
 			virtual void Delete(const std::string& key);
 
-			virtual bool ProcessSmartMessage(const std::string& category, const Json::Value& jsonMsg, Decent::Net::Connection& connection) override;
+			virtual bool ProcessSmartMessage(const std::string& category, Net::ConnectionBase& connection) override;
 
 		private:
 		};
