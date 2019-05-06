@@ -8,7 +8,7 @@
 #include <DecentApi/Common/Ra/WhiteList/DecentServer.h>
 
 #include "ConnectionManager.h"
-#include "DhtClientStatesSingleton.h"
+#include "StatesSingleton.h"
 
 using namespace Decent;
 using namespace Decent::Ra;

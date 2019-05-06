@@ -8,8 +8,8 @@
 
 #include "AppNames.h"
 #include "FuncNums.h"
-#include "DhtClientStates.h"
-#include "DhtClientStatesSingleton.h"
+#include "States.h"
+#include "StatesSingleton.h"
 #include "ConnectionManager.h"
 
 using namespace Decent;
