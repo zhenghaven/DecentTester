@@ -2,6 +2,8 @@
 
 #include <DecentApi/Common/Net/ConnectionPool.h>
 
+#include <random>
+
 namespace Decent
 {
 	namespace Tools
@@ -27,7 +29,12 @@ namespace Decent
 			std::shared_ptr<ConnectionPool> GetSharedPtr();
 
 		private:
-			uint64_t m_firstNodeAddr;
+			std::random_device m_rd;
+			std::mt19937 m_randGen;
+
+			std::vector<uint64_t> m_knownNodeAddr;
+
+			std::unique_ptr<std::uniform_int_distribution<size_t> > m_uniDist;
 		};
 	}
 }
