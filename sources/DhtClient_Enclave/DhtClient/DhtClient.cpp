@@ -38,10 +38,10 @@ uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& ke
 
 	comm.SendRaw(key.data(), key.size());
 
-	std::array<uint8_t, 32> resId;
-	uint64_t addr = 0;
+	//std::array<uint8_t, 32> resId;
+	//comm.ReceiveRaw(resId.data(), resId.size());
 
-	comm.ReceiveRaw(resId.data(), resId.size());
+	uint64_t addr = 0;
 	comm.ReceiveStruct(addr);
 
 	return addr;
