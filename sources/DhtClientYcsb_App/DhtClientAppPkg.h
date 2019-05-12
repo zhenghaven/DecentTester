@@ -3,12 +3,13 @@
 #include <memory>
 
 #include "DhtClientApp.h"
-#include "DhtClient/ConnectionPool.h"
 
 namespace Decent
 {
 	namespace DhtClient
 	{
+		class ConnectionPool;
+
 		struct DhtClientAppPkg
 		{
 			std::shared_ptr<ConnectionPool> m_cntPool;

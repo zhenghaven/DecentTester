@@ -7,10 +7,10 @@
 #include <DecentApi/Common/GeneralKeyTypes.h>
 #include <DecentApi/Common/MbedTls/Hasher.h>
 
-#include "DhtClient/DhtClient.h"
-#include "DhtClient/States.h"
-#include "DhtClient/StatesSingleton.h"
-#include "DhtClient/ConnectionManager.h"
+#include "../Common_Enclave/DhtClient/DhtClient.h"
+#include "../Common_Enclave/DhtClient/States.h"
+#include "../Common_Enclave/DhtClient/StatesSingleton.h"
+#include "../Common_Enclave/DhtClient/ConnectionManager.h"
 
 #include "Enclave_t.h"
 

@@ -11,7 +11,7 @@
 #include <DecentApi/CommonApp/Tools/FileSystemUtil.h>
 #include <DecentApi/CommonApp/Net/TCPConnection.h>
 
-#include "DhtClient/ConnectionPool.h"
+#include "../Common_App/DhtClient/ConnectionPool.h"
 #include "DhtClientApp.h"
 #include "DhtClientAppPkg.h"
 
