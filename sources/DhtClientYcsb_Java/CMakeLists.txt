@@ -6,12 +6,19 @@ set(PROJECT_NAME DhtClientYcsb)
 
 set(${PROJECT_NAME}_JAR_NAME dht-0.1.0.jar)
 
-set(${PROJECT_NAME}_JNI_HEADER com_decent_dht_DhtClientBinding.h)
-set(${PROJECT_NAME}_JAVA_SRC_JNI com/decent/dht/DhtClientBinding.java)
+set(${PROJECT_NAME}_JNI_HEADER com_decent_dht_DhtClientBinding.h
+	                           com_decent_dht_DhtClientNonEnclaveBinding.h)
+
+set(${PROJECT_NAME}_JAVA_SRC_JNI com/decent/dht/DhtClientBinding.java
+	                             com/decent/dht/DhtClientNonEnclaveBinding.java)
+
 set(${PROJECT_NAME}_JAVA_SRC com/decent/dht/DhtClientBinding.java
-	               com/decent/dht/DhtClientBindingException.java)
+	                         com/decent/dht/DhtClientNonEnclaveBinding.java
+	                         com/decent/dht/DhtClientBindingException.java)
+
 set(${PROJECT_NAME}_JAVA_BIN com/decent/dht/DhtClientBinding.class
-	               com/decent/dht/DhtClientBindingException.class)
+	                         com/decent/dht/DhtClientNonEnclaveBinding.class
+	                         com/decent/dht/DhtClientBindingException.class)
 
 set(${PROJECT_NAME}_GENERATED_FILES ${${PROJECT_NAME}_JNI_HEADER} ${${PROJECT_NAME}_JAVA_BIN} ${${PROJECT_NAME}_JAR_NAME})
 
