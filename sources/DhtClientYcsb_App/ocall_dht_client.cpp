@@ -5,8 +5,8 @@
 #include <DecentApi/Common/Net/ConnectionBase.h>
 #include <DecentApi/Common/Net/CntPoolConnection.h>
 
-#include "DhtClient/ConnectionPool.h"
-#include "DhtClient/RequestCategory.h"
+#include "../Common_App/DhtClient/ConnectionPool.h"
+#include "../Common_App/DhtClient/RequestCategory.h"
 
 using namespace Decent;
 using namespace Decent::DhtClient;
