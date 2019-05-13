@@ -22,8 +22,7 @@ namespace
 }
 
 ConnectionManager::ConnectionManager(size_t cacheSize) :
-	m_sessionCache(cacheSize),
-	m_cntPoolPtr(nullptr)
+	m_sessionCache(cacheSize)
 {
 }
 
@@ -31,14 +30,9 @@ ConnectionManager::~ConnectionManager()
 {
 }
 
-void ConnectionManager::InitConnectionPoolPtr(void * ptr)
+CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, States & state)
 {
-	m_cntPoolPtr = ptr;
-}
-
-CntPair ConnectionManager::GetNew(const uint64_t & addr, States & state)
-{
-	std::unique_ptr<ConnectionBase> connection = UntrustedConnectionPool::GetDhtNode(m_cntPoolPtr, addr);
+	std::unique_ptr<ConnectionBase> connection = UntrustedConnectionPool::GetDhtNode(cntPoolPtr, addr);
 
 	std::shared_ptr<MbedTlsObj::Session> session = m_sessionCache.Get(addr);
 
@@ -53,9 +47,9 @@ CntPair ConnectionManager::GetNew(const uint64_t & addr, States & state)
 	return CntPair(connection, comm);
 }
 
-CntPair ConnectionManager::GetAny(States & state)
+CntPair ConnectionManager::GetAny(void* cntPoolPtr, States & state)
 {
-	std::pair<std::unique_ptr<Net::ConnectionBase>, uint64_t> cntPair = UntrustedConnectionPool::GetAnyDhtNode(m_cntPoolPtr);
+	std::pair<std::unique_ptr<Net::ConnectionBase>, uint64_t> cntPair = UntrustedConnectionPool::GetAnyDhtNode(cntPoolPtr);
 
 	std::shared_ptr<MbedTlsObj::Session> session = m_sessionCache.Get(cntPair.second);
 

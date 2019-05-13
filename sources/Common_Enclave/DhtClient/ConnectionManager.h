@@ -25,15 +25,12 @@ namespace Decent
 
 			virtual ~ConnectionManager();
 
-			void InitConnectionPoolPtr(void* ptr);
+			virtual Net::CntPair GetNew(void* cntPoolPtr, const uint64_t& addr, Ra::States& state);
 
-			virtual Net::CntPair GetNew(const uint64_t& addr, Ra::States& state);
-
-			virtual Net::CntPair GetAny(Ra::States& state);
+			virtual Net::CntPair GetAny(void* cntPoolPtr, Ra::States& state);
 
 		private:
 			Tools::SharedCachingQueue<uint64_t, MbedTlsObj::Session> m_sessionCache;
-			void* m_cntPoolPtr;
 		};
 	}
 }

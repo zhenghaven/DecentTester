@@ -25,13 +25,13 @@ namespace
 
 }
 
-uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& key)
+uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& key, void* cntPoolPtr)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
 	//PRINT_I("Finding Successor of %s.", ConstBigNumber(key).Get().ToBigEndianHexStr().c_str());
 
-	CntPair cntPair = gs_state.GetConnectionMgr().GetAny(gs_state);
+	CntPair cntPair = gs_state.GetConnectionMgr().GetAny(cntPoolPtr, gs_state);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_findSuccessor);
@@ -47,11 +47,11 @@ uint64_t Dht::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& ke
 	return addr;
 }
 
-void Dht::GetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, std::vector<uint8_t>& outData)
+void Dht::GetData(const uint64_t addr, void* cntPoolPtr, const std::array<uint8_t, sk_hashSizeByte>& key, std::vector<uint8_t>& outData)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(addr, gs_state);
+	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(cntPoolPtr, addr, gs_state);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_getData);
@@ -62,11 +62,11 @@ void Dht::GetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte
 
 }
 
-void Dht::SetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
+void Dht::SetData(const uint64_t addr, void* cntPoolPtr, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(addr, gs_state);
+	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(cntPoolPtr, addr, gs_state);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_setData);
@@ -78,11 +78,11 @@ void Dht::SetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte
 
 }
 
-void Dht::GetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, std::string & outData)
+void Dht::GetData(const uint64_t addr, void* cntPoolPtr, const std::array<uint8_t, sk_hashSizeByte>& key, std::string & outData)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(addr, gs_state);
+	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(cntPoolPtr, addr, gs_state);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_getData);
@@ -93,11 +93,11 @@ void Dht::GetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte
 
 }
 
-void Dht::SetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key, const std::string & data)
+void Dht::SetData(const uint64_t addr, void* cntPoolPtr, const std::array<uint8_t, sk_hashSizeByte>& key, const std::string & data)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(addr, gs_state);
+	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(cntPoolPtr, addr, gs_state);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_setData);
@@ -109,11 +109,11 @@ void Dht::SetData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte
 
 }
 
-void Dht::DelData(const uint64_t addr, const std::array<uint8_t, sk_hashSizeByte>& key)
+void Dht::DelData(const uint64_t addr, void* cntPoolPtr, const std::array<uint8_t, sk_hashSizeByte>& key)
 {
 	using namespace Decent::Dht::EncFunc::App;
 
-	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(addr, gs_state);
+	CntPair cntPair = gs_state.GetConnectionMgr().GetNew(cntPoolPtr, addr, gs_state);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	comm.SendStruct(k_delData);

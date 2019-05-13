@@ -120,7 +120,7 @@ JNIEXPORT jstring JNICALL Java_com_decent_dht_DhtClientBinding_read(JNIEnv * env
 
 	try
 	{
-		std::string val = decentappPkg.m_app->Read(keyStr);
+		std::string val = decentappPkg.m_app->Read(decentappPkg.m_cntPool, keyStr);
 
 		return env->NewStringUTF(val.c_str());
 	}
@@ -150,7 +150,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_insert(JNIEnv * env,
 
 	try
 	{
-		decentappPkg.m_app->Insert(keyStr, valStr);
+		decentappPkg.m_app->Insert(decentappPkg.m_cntPool, keyStr, valStr);
 	}
 	catch (const std::exception& e)
 	{
@@ -171,7 +171,7 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientBinding_delete(JNIEnv * env,
 
 	try
 	{
-		decentappPkg.m_app->Delete(keyStr);
+		decentappPkg.m_app->Delete(decentappPkg.m_cntPool, keyStr);
 	}
 	catch (const std::exception& e)
 	{

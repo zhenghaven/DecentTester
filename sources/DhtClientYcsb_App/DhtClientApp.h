@@ -15,13 +15,13 @@ namespace Decent
 
 			virtual ~DhtClientApp();
 
-			void Init(std::shared_ptr<ConnectionPool> cntPool);
+			void Init();
 
-			virtual void Insert(const std::string& key, const std::string& val);
+			virtual void Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string& key, const std::string& val);
 
-			virtual std::string Read(const std::string& key);
+			virtual std::string Read(std::shared_ptr<ConnectionPool> cntPool, const std::string& key);
 
-			virtual void Delete(const std::string& key);
+			virtual void Delete(std::shared_ptr<ConnectionPool> cntPool, const std::string& key);
 
 			virtual bool ProcessSmartMessage(const std::string& category, Net::ConnectionBase& connection, Net::ConnectionBase*& freeHeldCnt) override;
 

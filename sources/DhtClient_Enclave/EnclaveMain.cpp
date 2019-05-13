@@ -28,13 +28,12 @@ namespace
 
 }
 
-extern "C" int ecall_dht_client_init(void* cnt_pool_ptr)
+extern "C" int ecall_dht_client_init()
 {
-	gs_state.GetConnectionMgr().InitConnectionPoolPtr(cnt_pool_ptr);
 	return true;
 }
 
-extern "C" int ecall_dht_client_insert(const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)
+extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)
 {
 	try
 	{
@@ -48,7 +47,7 @@ extern "C" int ecall_dht_client_insert(const void* key_buf, size_t key_size, con
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		SetData(id, val);
+		SetData(cnt_pool_ptr, id, val);
 
 		return true;
 	}
@@ -59,7 +58,7 @@ extern "C" int ecall_dht_client_insert(const void* key_buf, size_t key_size, con
 	}
 }
 
-extern "C" int ecall_dht_client_read(const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size)
+extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size)
 {
 	try
 	{
@@ -72,7 +71,7 @@ extern "C" int ecall_dht_client_read(const void* key_buf, size_t key_size, void*
 		Hasher::Calc<HashType::SHA256>(key, id);
 
 		std::vector<uint8_t> val;
-		GetData(id, val);
+		GetData(cnt_pool_ptr, id, val);
 
 		sgx_status_t ocallRet = ocall_dht_client_malloc(out_val_buf, val.size());
 		
@@ -94,7 +93,7 @@ extern "C" int ecall_dht_client_read(const void* key_buf, size_t key_size, void*
 	}
 }
 
-extern "C" int ecall_dht_client_delete(const void* key_buf, size_t key_size)
+extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, size_t key_size)
 {
 	try
 	{
@@ -106,7 +105,7 @@ extern "C" int ecall_dht_client_delete(const void* key_buf, size_t key_size)
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		DelData(id);
+		DelData(cnt_pool_ptr, id);
 
 		return true;
 	}
