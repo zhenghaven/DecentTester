@@ -1,13 +1,41 @@
 #include "DhtClientApp.h"
 
+#include <DecentApi/Common/Common.h>
+#include <DecentApi/Common/Ra/KeyContainer.h>
+#include <DecentApi/Common/Ra/WhiteList/LoadedList.h>
+#include <DecentApi/Common/Ra/WhiteList/DecentServer.h>
+
 #include <DecentApi/CommonApp/Base/EnclaveException.h>
 
-extern "C" int ecall_dht_client_init();
-extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size);
-extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size);
-extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, size_t key_size);
+#include <DecentApi/DecentAppEnclave/AppCertContainer.h>
+
+#include "../Common_Enclave/DhtClient/States.h"
+#include "../Common_Enclave/DhtClient/ConnectionManager.h"
+
+extern "C" int ecall_dht_client_init(void* states);
+extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size);
+extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size);
+extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size);
 
 using namespace Decent::DhtClient;
+
+namespace
+{
+	static const Decent::Ra::WhiteList::LoadedList& GetLoadedWhiteListImpl(Decent::Ra::WhiteList::LoadedList* instPtr)
+	{
+		static const Decent::Ra::WhiteList::LoadedList inst(nullptr);
+		return inst;
+	}
+}
+
+DhtClientApp::DhtClientApp() :
+	m_certContainer(std::make_unique<Ra::AppCertContainer>()),
+	m_keyContainer(std::make_unique<Ra::KeyContainer>()),
+	m_serverWl(std::make_unique<Ra::WhiteList::DecentServer>()),
+	m_connectionMgr(std::make_unique<ConnectionManager>(50)),
+	m_states(std::make_unique<DhtClient::States>(*m_certContainer, *m_keyContainer, *m_serverWl, &GetLoadedWhiteListImpl, *m_connectionMgr))
+{
+}
 
 DhtClientApp::~DhtClientApp()
 {
@@ -15,7 +43,7 @@ DhtClientApp::~DhtClientApp()
 
 void DhtClientApp::Init()
 {
-	int enclaveRet = ecall_dht_client_init();
+	int enclaveRet = ecall_dht_client_init(m_states.get());
 
 	if (!enclaveRet)
 	{
@@ -25,7 +53,7 @@ void DhtClientApp::Init()
 
 void DhtClientApp::Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string & key, const std::string & val)
 {
-	int retValue = ecall_dht_client_insert(cntPool.get(), key.data(), key.size(), val.data(), val.size());
+	int retValue = ecall_dht_client_insert(cntPool.get(), m_states.get(), key.data(), key.size(), val.data(), val.size());
 
 	if (!retValue)
 	{
@@ -38,7 +66,7 @@ std::string DhtClientApp::Read(std::shared_ptr<ConnectionPool> cntPool, const st
 	size_t valSize = 0;
 	void* valBuf = nullptr;
 
-	int retValue = ecall_dht_client_read(cntPool.get(), key.data(), key.size(), &valBuf, &valSize);
+	int retValue = ecall_dht_client_read(cntPool.get(), m_states.get(), key.data(), key.size(), &valBuf, &valSize);
 
 	if (!retValue)
 	{
@@ -56,7 +84,7 @@ std::string DhtClientApp::Read(std::shared_ptr<ConnectionPool> cntPool, const st
 
 void DhtClientApp::Delete(std::shared_ptr<ConnectionPool> cntPool, const std::string & key)
 {
-	int retValue = ecall_dht_client_delete(cntPool.get(), key.data(), key.size());
+	int retValue = ecall_dht_client_delete(cntPool.get(), m_states.get(), key.data(), key.size());
 
 	if (!retValue)
 	{

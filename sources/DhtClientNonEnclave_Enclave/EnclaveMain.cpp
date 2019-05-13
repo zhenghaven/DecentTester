@@ -13,36 +13,37 @@
 
 #include "../Common_Enclave/DhtClient/DhtClient.h"
 #include "../Common_Enclave/DhtClient/States.h"
-#include "../Common_Enclave/DhtClient/StatesSingleton.h"
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
 
 using namespace Decent;
 using namespace Decent::DhtClient;
-using namespace Decent::Ra;
-using namespace Decent::Dht;
 using namespace Decent::MbedTlsObj;
 
 namespace
 {
-	static DhtClient::States& gs_state = GetStatesSingleton();
-
+	std::mutex gs_certInitMutex;
 }
 
-extern "C" int ecall_dht_client_init()
+extern "C" int ecall_dht_client_init(void* states)
 {
-	AppCertContainer& certContainer = gs_state.GetAppCertContainer();
+	States& statesRef = *static_cast<States*>(states);
 
+	Ra::AppCertContainer& certContainer = statesRef.GetAppCertContainer();
+
+	std::unique_lock<std::mutex> certInitLock(gs_certInitMutex);
 	if (!certContainer.GetCert() || !*certContainer.GetCert())
 	{
-		std::shared_ptr<MbedTlsObj::X509Cert> cert = std::make_shared<ServerX509>(*gs_state.GetKeyContainer().GetSignKeyPair(), "N/A", "N/A", "N/A");
+		std::shared_ptr<MbedTlsObj::X509Cert> cert = std::make_shared<Ra::ServerX509>(*statesRef.GetKeyContainer().GetSignKeyPair(), "N/A", "N/A", "N/A");
 		certContainer.SetCert(cert);
 	}
+	certInitLock.unlock();
 
 	return true;
 }
 
-extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)
+extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)
 {
+	States& statesRef = *static_cast<States*>(states);
 	try
 	{
 		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
@@ -55,7 +56,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		SetData(cnt_pool_ptr, id, val);
+		SetData(cnt_pool_ptr, statesRef, id, val);
 
 		return true;
 	}
@@ -66,8 +67,9 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, 
 	}
 }
 
-extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size)
+extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size)
 {
+	States& statesRef = *static_cast<States*>(states);
 	try
 	{
 		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
@@ -79,7 +81,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, si
 		Hasher::Calc<HashType::SHA256>(key, id);
 
 		std::vector<uint8_t> val;
-		GetData(cnt_pool_ptr, id, val);
+		GetData(cnt_pool_ptr, statesRef, id, val);
 
 		*out_val_buf = new uint8_t[val.size()];
 
@@ -96,8 +98,9 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, si
 	}
 }
 
-extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, size_t key_size)
+extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size)
 {
+	States& statesRef = *static_cast<States*>(states);
 	try
 	{
 		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
@@ -108,7 +111,7 @@ extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		DelData(cnt_pool_ptr, id);
+		DelData(cnt_pool_ptr, statesRef, id);
 
 		return true;
 	}

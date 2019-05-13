@@ -17,15 +17,11 @@
 using namespace Decent;
 using namespace Decent::DhtClient;
 using namespace Decent::Ra;
-using namespace Decent::Dht;
 using namespace Decent::MbedTlsObj;
 
 namespace
 {
 	static DhtClient::States& gs_state = GetStatesSingleton();
-
-	static char gs_ack[] = "ACK";
-
 }
 
 extern "C" int ecall_dht_client_init()
@@ -47,7 +43,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		SetData(cnt_pool_ptr, id, val);
+		SetData(cnt_pool_ptr, gs_state, id, val);
 
 		return true;
 	}
@@ -71,7 +67,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, si
 		Hasher::Calc<HashType::SHA256>(key, id);
 
 		std::vector<uint8_t> val;
-		GetData(cnt_pool_ptr, id, val);
+		GetData(cnt_pool_ptr, gs_state, id, val);
 
 		sgx_status_t ocallRet = ocall_dht_client_malloc(out_val_buf, val.size());
 		
@@ -105,7 +101,7 @@ extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		DelData(cnt_pool_ptr, id);
+		DelData(cnt_pool_ptr, gs_state, id);
 
 		return true;
 	}
