@@ -1,4 +1,4 @@
-//#if ENCLAVE_PLATFORM_SGX
+#ifdef ENCLAVE_PLATFORM_SGX
 
 #include "../UntrustedConnectionPool.h"
 
@@ -38,4 +38,4 @@ std::unique_ptr<ConnectionBase> UntrustedConnectionPool::GetDhtNode(void * cntPo
 	return Tools::make_unique<EnclaveConnectionOwner>(EnclaveConnectionOwner::CntBuilder(SGX_SUCCESS, ocall_dht_client_cnt_pool_get_dht, cntPoolPtr, addr));
 }
 
-//#endif //ENCLAVE_PLATFORM_SGX
+#endif //ENCLAVE_PLATFORM_SGX

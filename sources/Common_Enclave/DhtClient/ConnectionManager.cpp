@@ -16,7 +16,11 @@ namespace
 {
 	std::shared_ptr<TlsConfigWithName> GetTlsCfg2Dht(States & state)
 	{
+#ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
+		static std::shared_ptr<TlsConfigWithName> tlsCfg = std::make_shared<TlsConfigWithName>(state, TlsConfigWithName::Mode::ClientNoCert, AppNames::sk_decentDHT, nullptr);
+#else
 		static std::shared_ptr<TlsConfigWithName> tlsCfg = std::make_shared<TlsConfigWithName>(state, TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT, nullptr);
+#endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 		return tlsCfg;
 	}
 }
@@ -36,7 +40,11 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, State
 
 	std::shared_ptr<MbedTlsObj::Session> session = m_sessionCache.Get(addr);
 
+#ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, GetTlsCfg2Dht(state), false, session);
+#else
 	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, GetTlsCfg2Dht(state), true, session);
+#endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 
 	if (!session)
 	{
@@ -53,7 +61,11 @@ CntPair ConnectionManager::GetAny(void* cntPoolPtr, States & state)
 
 	std::shared_ptr<MbedTlsObj::Session> session = m_sessionCache.Get(cntPair.second);
 
+#ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, GetTlsCfg2Dht(state), false, session);
+#else
 	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, GetTlsCfg2Dht(state), true, session);
+#endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 
 	if (!session)
 	{
