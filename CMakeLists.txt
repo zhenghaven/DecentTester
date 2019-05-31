@@ -234,9 +234,11 @@ endif()
 
 if(${DHT_TEST_ENCLAVE})
 	add_subdirectory(${SOURCEDIR}/DhtClient_Enclave)
+	add_subdirectory(${SOURCEDIR}/DhtClientNonEnclave_Enclave)
 endif()
 
 if(${DHT_YCSB_TEST})
 	add_subdirectory(${SOURCEDIR}/DhtClientYcsb_Java)
 	add_subdirectory(${SOURCEDIR}/DhtClientYcsb_App)
+	add_subdirectory(${SOURCEDIR}/DhtClientNonEnclaveYcsb_App)
 endif()
