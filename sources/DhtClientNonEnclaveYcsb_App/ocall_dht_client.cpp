@@ -11,6 +11,8 @@
 using namespace Decent;
 using namespace Decent::DhtClient;
 
+#define DHT_USER_TEST
+
 extern "C" void* ocall_dht_client_cnt_pool_get_dht_any(void* cnt_pool_ptr, uint64_t* address)
 {
 	if (!cnt_pool_ptr)
@@ -29,7 +31,12 @@ extern "C" void* ocall_dht_client_cnt_pool_get_dht_any(void* cnt_pool_ptr, uint6
 			return nullptr;
 		}
 
+#ifndef DHT_USER_TEST
 		cntPair.first->SendPack(Dht::RequestCategory::sk_fromApp);
+#else
+		cntPair.first->SendPack(Dht::RequestCategory::sk_fromUser);
+#endif // DHT_USER_TEST
+
 
 		if (address)
 		{
@@ -64,7 +71,11 @@ extern "C" void* ocall_dht_client_cnt_pool_get_dht(void* cnt_pool_ptr, uint64_t 
 			return nullptr;
 		}
 
+#ifndef DHT_USER_TEST
 		cnt->SendPack(Dht::RequestCategory::sk_fromApp);
+#else
+		cnt->SendPack(Dht::RequestCategory::sk_fromUser);
+#endif // DHT_USER_TEST
 
 		return new Net::CntPoolConnection<uint64_t>(address, std::move(cnt), cntPoolRef.GetSharedPtr());
 	}

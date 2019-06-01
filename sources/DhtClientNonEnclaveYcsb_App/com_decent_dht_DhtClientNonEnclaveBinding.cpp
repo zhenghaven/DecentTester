@@ -148,6 +148,32 @@ JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientNonEnclaveBinding_insert(JNI
 	}
 }
 
+JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientNonEnclaveBinding_update(JNIEnv * env, jobject obj, jstring key, jstring val)
+{
+	jlong cPtr = env->GetLongField(obj, gsk_bindingClassCPtr);
+	if (Long2Ptr(cPtr) == nullptr) { ThrowDhtClientBindingException(env, "Please Initialize first!"); return; }
+	DhtClientAppPkg& decentappPkg = *static_cast<DhtClientAppPkg*>(Long2Ptr(cPtr));
+
+	const char * inCStr = env->GetStringUTFChars(key, NULL);
+	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return; }
+	std::string keyStr(inCStr);
+	env->ReleaseStringUTFChars(key, inCStr);
+
+	inCStr = env->GetStringUTFChars(val, NULL);
+	if (inCStr == nullptr) { ThrowDhtClientBindingException(env, "Failed to retrieve Java String."); return; }
+	std::string valStr(inCStr);
+	env->ReleaseStringUTFChars(val, inCStr);
+
+	try
+	{
+		decentappPkg.m_app->Update(decentappPkg.m_cntPool, keyStr, valStr);
+	}
+	catch (const std::exception& e)
+	{
+		ThrowDhtClientBindingException(env, std::string("Failed to insert data! Error Msg: ") + e.what());
+	}
+}
+
 JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientNonEnclaveBinding_delete(JNIEnv * env, jobject obj, jstring key)
 {
 	jlong cPtr = env->GetLongField(obj, gsk_bindingClassCPtr);

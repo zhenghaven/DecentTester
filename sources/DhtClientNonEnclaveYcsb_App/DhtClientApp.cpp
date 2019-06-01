@@ -14,6 +14,7 @@
 
 extern "C" int ecall_dht_client_init(void* states);
 extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size);
+extern "C" int ecall_dht_client_update(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size);
 extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size);
 extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size);
 
@@ -54,6 +55,16 @@ void DhtClientApp::Init()
 void DhtClientApp::Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string & key, const std::string & val)
 {
 	int retValue = ecall_dht_client_insert(cntPool.get(), m_states.get(), key.data(), key.size(), val.data(), val.size());
+
+	if (!retValue)
+	{
+		throw Decent::RuntimeException("Failed to insert value!");
+	}
+}
+
+void DhtClientApp::Update(std::shared_ptr<ConnectionPool> cntPool, const std::string & key, const std::string & val)
+{
+	int retValue = ecall_dht_client_update(cntPool.get(), m_states.get(), key.data(), key.size(), val.data(), val.size());
 
 	if (!retValue)
 	{

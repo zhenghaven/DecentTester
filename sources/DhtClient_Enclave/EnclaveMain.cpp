@@ -29,7 +29,7 @@ namespace
 	{
 		Dht::AccessCtrl::EntityItem owner({ 0 });
 
-		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::DenyAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
+		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
 	}
 
 	static std::vector<uint8_t> GetTestAccPolicyBin()
