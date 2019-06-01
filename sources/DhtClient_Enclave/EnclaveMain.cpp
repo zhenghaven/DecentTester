@@ -11,6 +11,8 @@
 #include "../Common_Enclave/DhtClient/States.h"
 #include "../Common_Enclave/DhtClient/StatesSingleton.h"
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
+#include "../Common_Enclave/DhtClient/AccessCtrl/AbPolicy.h"
+#include "../Common_Enclave/DhtClient/AccessCtrl/FullPolicy.h"
 
 #include "Enclave_t.h"
 
@@ -22,6 +24,27 @@ using namespace Decent::MbedTlsObj;
 namespace
 {
 	static DhtClient::States& gs_state = GetStatesSingleton();
+
+	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy()
+	{
+		Dht::AccessCtrl::EntityItem owner({ 0 });
+
+		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::DenyAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
+	}
+
+	static std::vector<uint8_t> GetTestAccPolicyBin()
+	{
+		Dht::AccessCtrl::FullPolicy policy = GetTestAccPolicy();
+		std::vector<uint8_t> res(policy.GetSerializedSize());
+		policy.Serialize(res.begin(), res.end());
+		return res;
+	}
+
+	static const std::vector<uint8_t>& GetTestAccPolicyBinStatic()
+	{
+		static std::vector<uint8_t> inst = GetTestAccPolicyBin();
+		return inst;
+	}
 }
 
 extern "C" int ecall_dht_client_init()
@@ -43,13 +66,38 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		SetData(cnt_pool_ptr, gs_state, id, val);
+		AppInsertData(cnt_pool_ptr, gs_state, id, GetTestAccPolicyBinStatic(), val);
 
 		return true;
 	}
 	catch (const std::exception& e)
 	{
-		PRINT_W("Failed to insert data.\nError message: %s.", e.what());
+		PRINT_W("Failed to insert data. Error message: %s", e.what());
+		return false;
+	}
+}
+
+extern "C" int ecall_dht_client_update(void* cnt_pool_ptr, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size)
+{
+	try
+	{
+		const uint8_t* keyBytePtr = static_cast<const uint8_t*>(key_buf);
+		const uint8_t* ValBytePtr = static_cast<const uint8_t*>(val_buf);
+
+		std::vector<uint8_t> key(keyBytePtr, keyBytePtr + key_size);
+		std::vector<uint8_t> val(ValBytePtr, ValBytePtr + val_size);
+
+		std::array<uint8_t, sk_hashSizeByte> id;
+
+		Hasher::Calc<HashType::SHA256>(key, id);
+
+		AppUpdateData(cnt_pool_ptr, gs_state, id, val);
+
+		return true;
+	}
+	catch (const std::exception& e)
+	{
+		PRINT_W("Failed to insert data. Error message: %s", e.what());
 		return false;
 	}
 }
@@ -66,8 +114,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, si
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		std::vector<uint8_t> val;
-		GetData(cnt_pool_ptr, gs_state, id, val);
+		std::vector<uint8_t> val = AppReadData(cnt_pool_ptr, gs_state, id);
 
 		sgx_status_t ocallRet = ocall_dht_client_malloc(out_val_buf, val.size());
 		
@@ -84,7 +131,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, si
 	}
 	catch (const std::exception& e)
 	{
-		PRINT_W("Failed to read data.\nError message: %s.", e.what());
+		PRINT_W("Failed to read data. Error message: %s", e.what());
 		return false;
 	}
 }
@@ -101,13 +148,13 @@ extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		DelData(cnt_pool_ptr, gs_state, id);
+		AppDeleteData(cnt_pool_ptr, gs_state, id);
 
 		return true;
 	}
 	catch (const std::exception& e)
 	{
-		PRINT_W("Failed to delete data.\nError message: %s.", e.what());
+		PRINT_W("Failed to delete data. Error message: %s", e.what());
 		return false;
 	}
 }

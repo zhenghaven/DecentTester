@@ -20,6 +20,8 @@ public class DhtClientNonEnclaveBinding
 
 	public native void insert(String key, String value) throws DhtClientBindingException;
 
+	public native void update(String key, String value) throws DhtClientBindingException;
+
 	public native void delete(String key) throws DhtClientBindingException;
 
 	private long cPtr;

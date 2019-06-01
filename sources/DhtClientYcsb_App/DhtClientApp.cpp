@@ -37,6 +37,19 @@ void DhtClientApp::Insert(std::shared_ptr<ConnectionPool> cntPool, const std::st
 	}
 }
 
+void DhtClientApp::Update(std::shared_ptr<ConnectionPool> cntPool, const std::string & key, const std::string & val)
+{
+	int retValue = false;
+
+	sgx_status_t enclaveRet = ecall_dht_client_update(GetEnclaveId(), &retValue, cntPool.get(), key.data(), key.size(), val.data(), val.size());
+	DECENT_CHECK_SGX_STATUS_ERROR(enclaveRet, ecall_dht_client_update);
+
+	if (!retValue)
+	{
+		throw Decent::RuntimeException("Failed to update value!");
+	}
+}
+
 std::string DhtClientApp::Read(std::shared_ptr<ConnectionPool> cntPool, const std::string & key)
 {
 	int retValue = false;
@@ -49,7 +62,7 @@ std::string DhtClientApp::Read(std::shared_ptr<ConnectionPool> cntPool, const st
 
 	if (!retValue)
 	{
-		throw Decent::RuntimeException("Failed to delete value!");
+		throw Decent::RuntimeException("Failed to read value!");
 	}
 
 	uint8_t* valBufByte = static_cast<uint8_t*>(valBuf);

@@ -6,11 +6,29 @@
 #include <vector>
 #include <string>
 
+#include <DecentApi/Common/RuntimeException.h>
+
 namespace Decent
 {
 	namespace DhtClient
 	{
 		class States;
+
+		class DataNonExist : public RuntimeException
+		{
+		public:
+			DataNonExist() :
+				RuntimeException("Request data does not exist in the DHT store.")
+			{}
+		};
+
+		class PermissionDenied : public RuntimeException
+		{
+		public:
+			PermissionDenied() :
+				RuntimeException("Request has been denied because of the permission.")
+			{}
+		};
 
 		/**
 		 * \brief	The size of hash in Bytes.
@@ -19,39 +37,32 @@ namespace Decent
 		
 		uint64_t GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& key, void* cntPoolPtr, States& states);
 
-		void GetData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, std::vector<uint8_t>& outData);
+		std::vector<uint8_t> AppReadData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key);
 
-		void SetData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data);
+		void AppInsertData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& meta, const std::vector<uint8_t>& data);
 
-		void GetData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, std::string& outData);
+		void AppUpdateData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data);
 
-		void SetData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::string& data);
+		void AppDeleteData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key);
 
-		void DelData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key);
-
-		inline void GetData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, std::vector<uint8_t>& outData)
+		inline std::vector<uint8_t> AppReadData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key)
 		{
-			GetData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, outData);
+			return AppReadData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
 		}
 
-		inline void SetData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
+		inline void AppInsertData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& meta, const std::vector<uint8_t>& data)
 		{
-			SetData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, data);
+			AppInsertData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, meta, data);
 		}
 
-		inline void GetData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, std::string& outData)
+		inline void AppUpdateData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
 		{
-			GetData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, outData);
+			AppUpdateData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, data);
 		}
 
-		inline void SetData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::string& data)
+		inline void AppDeleteData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key)
 		{
-			SetData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, data);
-		}
-
-		inline void DelData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key)
-		{
-			DelData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
+			AppDeleteData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
 		}
 	}
 }
