@@ -13,6 +13,7 @@ namespace Decent
 		namespace WhiteList
 		{
 			class DecentServer;
+			class StaticList;
 		}
 	}
 
@@ -29,7 +30,7 @@ namespace Decent
 
 			virtual ~DhtClientApp();
 
-			void Init();
+			void Init(std::shared_ptr<ConnectionPool> cntPool, const Ra::WhiteList::StaticList& loadedWhiteList);
 
 			virtual void Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string& key, const std::string& val);
 

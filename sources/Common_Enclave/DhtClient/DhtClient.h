@@ -7,9 +7,19 @@
 #include <string>
 
 #include <DecentApi/Common/RuntimeException.h>
+#include <DecentApi/Common/general_key_types.h>
 
 namespace Decent
 {
+	namespace Dht
+	{
+		namespace AccessCtrl
+		{
+			class EntityList;
+			class FullPolicy;
+		}
+	}
+
 	namespace DhtClient
 	{
 		class States;
@@ -34,12 +44,14 @@ namespace Decent
 		 * \brief	The size of hash in Bytes.
 		 */
 		constexpr size_t sk_hashSizeByte = 32;
+
+		// ------- Functions for Decent Applications (enclaves):
 		
 		uint64_t GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByte>& key, void* cntPoolPtr, States& states);
 
 		std::vector<uint8_t> AppReadData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key);
 
-		void AppInsertData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& meta, const std::vector<uint8_t>& data);
+		void AppInsertData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const Dht::AccessCtrl::FullPolicy& accPolicy, const std::vector<uint8_t>& data);
 
 		void AppUpdateData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data);
 
@@ -50,9 +62,9 @@ namespace Decent
 			return AppReadData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
 		}
 
-		inline void AppInsertData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& meta, const std::vector<uint8_t>& data)
+		inline void AppInsertData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const Dht::AccessCtrl::FullPolicy& accPolicy, const std::vector<uint8_t>& data)
 		{
-			AppInsertData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, meta, data);
+			AppInsertData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, accPolicy, data);
 		}
 
 		inline void AppUpdateData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
@@ -63,6 +75,27 @@ namespace Decent
 		inline void AppDeleteData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key)
 		{
 			AppDeleteData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
+		}
+
+		// ------- Functions for Users (non-enclaves):
+
+		uint64_t GetAttrListAddress(const std::string& listName, void* cntPoolPtr, States& states);
+
+		void UserInsertAttrList(const uint64_t addr, void* cntPoolPtr, States& states, const std::string& listName, const Dht::AccessCtrl::EntityList& list);
+
+		inline void UserInsertData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const Dht::AccessCtrl::FullPolicy& accPolicy, const std::vector<uint8_t>& data)
+		{
+			AppInsertData(addr, cntPoolPtr, states, key, accPolicy, data);
+		}
+
+		inline void UserInsertAttrList(void* cntPoolPtr, States& states, const std::string& listName, const Dht::AccessCtrl::EntityList& list)
+		{
+			UserInsertAttrList(GetAttrListAddress(listName, cntPoolPtr, states), cntPoolPtr, states, listName, list);
+		}
+
+		inline void UserInsertData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const Dht::AccessCtrl::FullPolicy& accPolicy, const std::vector<uint8_t>& data)
+		{
+			UserInsertData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, accPolicy, data);
 		}
 	}
 }

@@ -32,17 +32,10 @@ namespace
 		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
 	}
 
-	static std::vector<uint8_t> GetTestAccPolicyBin()
+	static const Dht::AccessCtrl::FullPolicy& GetTestAccPolicyStatic()
 	{
-		Dht::AccessCtrl::FullPolicy policy = GetTestAccPolicy();
-		std::vector<uint8_t> res(policy.GetSerializedSize());
-		policy.Serialize(res.begin(), res.end());
-		return res;
-	}
+		static const Dht::AccessCtrl::FullPolicy inst = GetTestAccPolicy();
 
-	static const std::vector<uint8_t>& GetTestAccPolicyBinStatic()
-	{
-		static std::vector<uint8_t> inst = GetTestAccPolicyBin();
 		return inst;
 	}
 }
@@ -66,7 +59,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, 
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		AppInsertData(cnt_pool_ptr, gs_state, id, GetTestAccPolicyBinStatic(), val);
+		AppInsertData(cnt_pool_ptr, gs_state, id, GetTestAccPolicyStatic(), val);
 
 		return true;
 	}

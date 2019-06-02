@@ -11,8 +11,6 @@
 using namespace Decent;
 using namespace Decent::DhtClient;
 
-#define DHT_USER_TEST
-
 extern "C" void* ocall_dht_client_cnt_pool_get_dht_any(void* cnt_pool_ptr, uint64_t* address)
 {
 	if (!cnt_pool_ptr)
@@ -36,7 +34,6 @@ extern "C" void* ocall_dht_client_cnt_pool_get_dht_any(void* cnt_pool_ptr, uint6
 #else
 		cntPair.first->SendPack(Dht::RequestCategory::sk_fromUser);
 #endif // DHT_USER_TEST
-
 
 		if (address)
 		{

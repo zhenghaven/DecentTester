@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <DecentApi/Common/Common.h>
+#include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/GeneralKeyTypes.h>
 #include <DecentApi/Common/MbedTls/Hasher.h>
 
@@ -16,6 +17,7 @@
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
 #include "../Common_Enclave/DhtClient/AccessCtrl/AbPolicy.h"
 #include "../Common_Enclave/DhtClient/AccessCtrl/FullPolicy.h"
+#include "../Common_Enclave/DhtClient/AccessCtrl/EntityList.h"
 
 using namespace Decent;
 using namespace Decent::DhtClient;
@@ -23,43 +25,98 @@ using namespace Decent::MbedTlsObj;
 
 namespace
 {
-	std::mutex gs_certInitMutex;
-
-	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy()
+#ifndef DHT_USER_TEST
+	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy(States& states)
 	{
 		Dht::AccessCtrl::EntityItem owner({ 0 });
 
 		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
 	}
+#else
+#	define DHT_USER_TEST_TEST_LABEL "TestList"
 
-	static std::vector<uint8_t> GetTestAccPolicyBin()
+	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy(States& states)
 	{
-		Dht::AccessCtrl::FullPolicy policy = GetTestAccPolicy();
-		std::vector<uint8_t> res(policy.GetSerializedSize());
-		policy.Serialize(res.begin(), res.end());
-		return res;
+		using namespace Dht::AccessCtrl;
+
+		Dht::AccessCtrl::EntityItem owner({ 0 });
+
+		std::string pubKeyPem = states.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
+
+		general_256bit_hash userId;
+		Hasher::Calc<HashType::SHA256>(pubKeyPem, userId);
+
+		general_256bit_hash labelId1;
+		general_256bit_hash labelId2;
+		general_256bit_hash labelId3;
+		general_256bit_hash labelId4;
+		general_256bit_hash labelId5;
+
+		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "1", labelId1);
+		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "2", labelId2);
+		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "3", labelId3);
+		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "4", labelId4);
+		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "5", labelId5);
+
+		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), 
+			Dht::AccessCtrl::AttributeBasedControl(
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId1)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId2)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId3)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId4)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId5)),
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId1)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId2)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId3)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId4)) &
+				Tools::make_unique<AbPolicyAttribute>(AbAttributeItem(userId, labelId5)),
+				AbPolicyNot::DenyAll()));
 	}
 
-	static const std::vector<uint8_t>& GetTestAccPolicyBinStatic()
+	static Dht::AccessCtrl::EntityList GetTestEntityList(const std::string& pubKeyPem)
 	{
-		static std::vector<uint8_t> inst = GetTestAccPolicyBin();
+		using namespace Dht::AccessCtrl;
+
+		EntityList list;
+
+		general_256bit_hash userId;
+		Hasher::Calc<HashType::SHA256>(pubKeyPem, userId);
+
+		list.Insert(EntityItem(userId));
+
+		return list;
+	}
+#endif // !DHT_USER_TEST
+
+	static const Dht::AccessCtrl::FullPolicy& GetTestAccPolicyStatic(States& states)
+	{
+		static const Dht::AccessCtrl::FullPolicy inst = GetTestAccPolicy(states);
+
 		return inst;
 	}
 }
 
-extern "C" int ecall_dht_client_init(void* states)
+extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
 {
 	States& statesRef = *static_cast<States*>(states);
 
 	Ra::AppCertContainer& certContainer = statesRef.GetAppCertContainer();
 
-	std::unique_lock<std::mutex> certInitLock(gs_certInitMutex);
 	if (!certContainer.GetCert() || !*certContainer.GetCert())
 	{
 		std::shared_ptr<MbedTlsObj::X509Cert> cert = std::make_shared<Ra::ServerX509>(*statesRef.GetKeyContainer().GetSignKeyPair(), "N/A", "N/A", "N/A");
 		certContainer.SetCert(cert);
 	}
-	certInitLock.unlock();
+
+#ifdef DHT_USER_TEST
+	std::string pubKeyPem = statesRef.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
+
+	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "1", GetTestEntityList(pubKeyPem));
+	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "2", GetTestEntityList(pubKeyPem));
+	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "3", GetTestEntityList(pubKeyPem));
+	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "4", GetTestEntityList(pubKeyPem));
+	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "5", GetTestEntityList(pubKeyPem));
+#endif // DHT_USER_TEST
 
 	return true;
 }
@@ -79,7 +136,11 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const v
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
-		AppInsertData(cnt_pool_ptr, statesRef, id, GetTestAccPolicyBinStatic(), val);
+#ifndef DHT_USER_TEST
+		AppInsertData(cnt_pool_ptr, statesRef, id, GetTestAccPolicyStatic(statesRef), val);
+#else
+		UserInsertData(cnt_pool_ptr, statesRef, id, GetTestAccPolicyStatic(statesRef), val);
+#endif // !DHT_USER_TEST
 
 		return true;
 	}

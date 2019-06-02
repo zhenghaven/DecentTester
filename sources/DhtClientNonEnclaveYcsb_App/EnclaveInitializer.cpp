@@ -49,7 +49,7 @@ JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPo
 	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager());
 	res->m_app = Tools::make_unique<DhtClientApp>();
 
-	res->m_app->Init();
+	res->m_app->Init(res->m_cntPool, GetConfigManager().GetLoadedWhiteList());
 
 	return res;
 }

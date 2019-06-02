@@ -12,7 +12,7 @@
 #include "../Common_Enclave/DhtClient/States.h"
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
 
-extern "C" int ecall_dht_client_init(void* states);
+extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states);
 extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size);
 extern "C" int ecall_dht_client_update(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, const void* val_buf, size_t val_size);
 extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size, void** out_val_buf, size_t* out_val_size);
@@ -24,7 +24,7 @@ namespace
 {
 	static const Decent::Ra::WhiteList::LoadedList& GetLoadedWhiteListImpl(Decent::Ra::WhiteList::LoadedList* instPtr)
 	{
-		static const Decent::Ra::WhiteList::LoadedList inst(nullptr);
+		static const Decent::Ra::WhiteList::LoadedList inst(instPtr);
 		return inst;
 	}
 }
@@ -42,9 +42,12 @@ DhtClientApp::~DhtClientApp()
 {
 }
 
-void DhtClientApp::Init()
+void DhtClientApp::Init(std::shared_ptr<ConnectionPool> cntPool, const Decent::Ra::WhiteList::StaticList& loadedWhiteList)
 {
-	int enclaveRet = ecall_dht_client_init(m_states.get());
+	Decent::Ra::WhiteList::LoadedList tmpLoadedWhiteList(loadedWhiteList.GetMap());
+	GetLoadedWhiteListImpl(&tmpLoadedWhiteList);
+
+	int enclaveRet = ecall_dht_client_init(cntPool.get(), m_states.get());
 
 	if (!enclaveRet)
 	{
