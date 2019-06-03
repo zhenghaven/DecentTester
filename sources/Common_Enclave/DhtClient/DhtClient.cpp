@@ -211,7 +211,7 @@ void DhtClient::UserInsertAttrList(const uint64_t addr, void * cntPoolPtr, State
 	using namespace Decent::Dht::EncFunc;
 	using namespace Decent::Dht::EncFunc::User;
 
-	CntPair cntPair = states.GetConnectionMgr().GetAny(cntPoolPtr, states);
+	CntPair cntPair = states.GetConnectionMgr().GetNew(cntPoolPtr, addr, states);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	size_t listBinSize = list.GetSerializedSize();
@@ -242,7 +242,7 @@ std::vector<uint8_t> Decent::DhtClient::UserReadData(const uint64_t addr, void *
 	using namespace Decent::Dht::EncFunc;
 	using namespace Decent::Dht::EncFunc::User;
 
-	CntPair cntPair = states.GetConnectionMgr().GetAny(cntPoolPtr, states);
+	CntPair cntPair = states.GetConnectionMgr().GetNew(cntPoolPtr, addr, states);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
 	std::shared_ptr<CachedAttributeList> cachedAttrList = std::atomic_load(&(states.GetAttributeCache()));
