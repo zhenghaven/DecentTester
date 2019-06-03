@@ -19,6 +19,10 @@ int main(int argc, char ** argv)
 		dhtClientAppPkg->m_app->Insert(dhtClientAppPkg->m_cntPool, "TestKey4", "TestVal4");
 		dhtClientAppPkg->m_app->Insert(dhtClientAppPkg->m_cntPool, "TestKey5", "TestVal5");
 
+		dhtClientAppPkg->m_app->Update(dhtClientAppPkg->m_cntPool, "TestKey3", "TestVal33");
+		dhtClientAppPkg->m_app->Update(dhtClientAppPkg->m_cntPool, "TestKey4", "TestVal44");
+		dhtClientAppPkg->m_app->Update(dhtClientAppPkg->m_cntPool, "TestKey5", "TestVal55");
+
 		std::string readRes1 = dhtClientAppPkg->m_app->Read(dhtClientAppPkg->m_cntPool, "TestKey1");
 		std::string readRes2 = dhtClientAppPkg->m_app->Read(dhtClientAppPkg->m_cntPool, "TestKey2");
 		std::string readRes3 = dhtClientAppPkg->m_app->Read(dhtClientAppPkg->m_cntPool, "TestKey3");

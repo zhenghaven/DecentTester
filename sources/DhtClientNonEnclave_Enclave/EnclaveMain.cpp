@@ -166,7 +166,11 @@ extern "C" int ecall_dht_client_update(void* cnt_pool_ptr, void* states, const v
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
+#ifndef DHT_USER_TEST
 		AppUpdateData(cnt_pool_ptr, statesRef, id, val);
+#else
+		UserUpdateData(cnt_pool_ptr, statesRef, id, val);
+#endif // !DHT_USER_TEST
 
 		return true;
 	}

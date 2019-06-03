@@ -103,5 +103,12 @@ namespace Decent
 		{
 			return UserReadData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
 		}
+
+		void UserUpdateData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data);
+
+		inline void UserUpdateData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const std::vector<uint8_t>& data)
+		{
+			UserUpdateData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, data);
+		}
 	}
 }
