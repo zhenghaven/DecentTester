@@ -110,5 +110,12 @@ namespace Decent
 		{
 			UserUpdateData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, data);
 		}
+
+		void UserDeleteData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key);
+
+		inline void UserDeleteData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key)
+		{
+			UserDeleteData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
+		}
 	}
 }

@@ -228,7 +228,11 @@ extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, void* states, const v
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
+#ifndef DHT_USER_TEST
 		AppDeleteData(cnt_pool_ptr, statesRef, id);
+#else
+		UserDeleteData(cnt_pool_ptr, statesRef, id);
+#endif // !DHT_USER_TEST
 
 		return true;
 	}

@@ -28,6 +28,12 @@ int main(int argc, char ** argv)
 		std::string readRes3 = dhtClientAppPkg->m_app->Read(dhtClientAppPkg->m_cntPool, "TestKey3");
 		std::string readRes4 = dhtClientAppPkg->m_app->Read(dhtClientAppPkg->m_cntPool, "TestKey4");
 		std::string readRes5 = dhtClientAppPkg->m_app->Read(dhtClientAppPkg->m_cntPool, "TestKey5");
+
+		dhtClientAppPkg->m_app->Delete(dhtClientAppPkg->m_cntPool, "TestKey1");
+		dhtClientAppPkg->m_app->Delete(dhtClientAppPkg->m_cntPool, "TestKey2");
+		dhtClientAppPkg->m_app->Delete(dhtClientAppPkg->m_cntPool, "TestKey3");
+		dhtClientAppPkg->m_app->Delete(dhtClientAppPkg->m_cntPool, "TestKey4");
+		dhtClientAppPkg->m_app->Delete(dhtClientAppPkg->m_cntPool, "TestKey5");
 	}
 	catch (const std::exception& e)
 	{
