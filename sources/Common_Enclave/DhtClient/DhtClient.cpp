@@ -1,5 +1,7 @@
 #include "DhtClient.h"
 
+#include <atomic>
+
 #include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/MbedTls/BigNumber.h>
 
@@ -233,4 +235,72 @@ void DhtClient::UserInsertAttrList(const uint64_t addr, void * cntPoolPtr, State
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 
 	CheckDhtStoreRpcError(retVal);
+}
+
+std::vector<uint8_t> Decent::DhtClient::UserReadData(const uint64_t addr, void * cntPoolPtr, States & states, const std::array<uint8_t, sk_hashSizeByte>& key)
+{
+	using namespace Decent::Dht::EncFunc;
+	using namespace Decent::Dht::EncFunc::User;
+
+	CntPair cntPair = states.GetConnectionMgr().GetAny(cntPoolPtr, states);
+	SecureCommLayer& comm = cntPair.GetCommLayer();
+
+	std::shared_ptr<CachedAttributeList> cachedAttrList = std::atomic_load(&(states.GetAttributeCache()));
+
+	const size_t listBinSize = cachedAttrList ? cachedAttrList->m_list.size() : 0;
+	const size_t certPemSize = cachedAttrList ? cachedAttrList->m_certPem.size() : 0;
+
+	RpcWriter rpc(RpcWriter::CalcSizePrim<NumType>() +
+		RpcWriter::CalcSizePrim<uint8_t[sk_hashSizeByte]>() +
+		RpcWriter::CalcSizePrim<uint8_t>() +
+		RpcWriter::CalcSizeBin(listBinSize) +
+		RpcWriter::CalcSizePrim<general_secp256r1_signature_t>() +
+		RpcWriter::CalcSizeStr(certPemSize), 6);
+
+	auto funcNum = rpc.AddPrimitiveArg<NumType>();
+	auto Key2Send = rpc.AddPrimitiveArg<uint8_t[sk_hashSizeByte]>();
+	auto hasCache = rpc.AddPrimitiveArg<uint8_t>();
+	auto listBin = rpc.AddBinaryArg(listBinSize);
+	auto cacheSign = rpc.AddPrimitiveArg<general_secp256r1_signature_t>();
+	auto certPem = rpc.AddStringArg(certPemSize);
+
+	funcNum = k_readData;
+	std::copy(key.begin(), key.end(), std::begin(Key2Send.Get()));
+
+	if (cachedAttrList)
+	{
+		hasCache = 1; //true
+		std::copy(cachedAttrList->m_list.begin(), cachedAttrList->m_list.end(), listBin.begin());
+		cacheSign = cachedAttrList->m_sign;
+		certPem.Fill(cachedAttrList->m_certPem);
+	}
+	else
+	{
+		hasCache = 0; //false
+	}
+
+	comm.SendRpc(rpc);
+
+	RpcParser rpcReturned(comm.ReceiveBinary());
+
+	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
+	auto retData = rpcReturned.GetBinaryArg();
+	const auto& retHasCache = rpcReturned.GetPrimitiveArg<uint8_t>();
+
+	CheckDhtStoreRpcError(retVal);
+
+	if (retHasCache)
+	{
+		std::shared_ptr<CachedAttributeList> updatedCache = std::make_shared<CachedAttributeList>();
+
+		auto retCacheList = rpcReturned.GetBinaryArg();
+		updatedCache->m_sign = rpcReturned.GetPrimitiveArg<general_secp256r1_signature_t>();
+		updatedCache->m_certPem = rpcReturned.GetStringArg();
+
+		updatedCache->m_list = std::vector<uint8_t>(retCacheList.first, retCacheList.second);
+
+		std::atomic_store(&(states.GetAttributeCache()), updatedCache);
+	}
+
+	return std::vector<uint8_t>(retData.first, retData.second);
 }

@@ -7,7 +7,6 @@
 #include <string>
 
 #include <DecentApi/Common/RuntimeException.h>
-#include <DecentApi/Common/general_key_types.h>
 
 namespace Decent
 {
@@ -96,6 +95,13 @@ namespace Decent
 		inline void UserInsertData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key, const Dht::AccessCtrl::FullPolicy& accPolicy, const std::vector<uint8_t>& data)
 		{
 			UserInsertData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key, accPolicy, data);
+		}
+
+		std::vector<uint8_t> UserReadData(const uint64_t addr, void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key);
+
+		inline std::vector<uint8_t> UserReadData(void* cntPoolPtr, States& states, const std::array<uint8_t, sk_hashSizeByte>& key)
+		{
+			return UserReadData(GetSuccessorAddress(key, cntPoolPtr, states), cntPoolPtr, states, key);
 		}
 	}
 }

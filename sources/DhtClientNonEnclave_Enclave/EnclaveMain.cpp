@@ -52,11 +52,11 @@ namespace
 		general_256bit_hash labelId4;
 		general_256bit_hash labelId5;
 
-		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "1", labelId1);
-		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "2", labelId2);
-		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "3", labelId3);
-		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "4", labelId4);
-		Hasher::Calc<HashType::SHA256>(DHT_USER_TEST_TEST_LABEL "5", labelId5);
+		Hasher::Calc<HashType::SHA256>(std::string(DHT_USER_TEST_TEST_LABEL "1"), labelId1);
+		Hasher::Calc<HashType::SHA256>(std::string(DHT_USER_TEST_TEST_LABEL "2"), labelId2);
+		Hasher::Calc<HashType::SHA256>(std::string(DHT_USER_TEST_TEST_LABEL "3"), labelId3);
+		Hasher::Calc<HashType::SHA256>(std::string(DHT_USER_TEST_TEST_LABEL "4"), labelId4);
+		Hasher::Calc<HashType::SHA256>(std::string(DHT_USER_TEST_TEST_LABEL "5"), labelId5);
 
 		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), 
 			Dht::AccessCtrl::AttributeBasedControl(
@@ -190,7 +190,11 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const voi
 
 		Hasher::Calc<HashType::SHA256>(key, id);
 
+#ifndef DHT_USER_TEST
 		std::vector<uint8_t> val = AppReadData(cnt_pool_ptr, statesRef, id);
+#else
+		std::vector<uint8_t> val = UserReadData(cnt_pool_ptr, statesRef, id);
+#endif // !DHT_USER_TEST
 
 		*out_val_buf = new uint8_t[val.size()];
 
