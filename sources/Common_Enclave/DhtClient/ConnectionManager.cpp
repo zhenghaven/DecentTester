@@ -7,27 +7,12 @@
 
 #include "UntrustedConnectionPool.h"
 #include "AppNames.h"
+#include "States.h"
 
+using namespace Decent;
 using namespace Decent::Ra;
 using namespace Decent::Net;
 using namespace Decent::DhtClient;
-
-namespace
-{
-	std::shared_ptr<TlsConfigWithName> GetTlsCfg2Dht(States & state)
-	{
-#ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
-#	ifndef DHT_USER_TEST
-		static std::shared_ptr<TlsConfigWithName> tlsCfg = std::make_shared<TlsConfigWithName>(state, TlsConfigWithName::Mode::ClientNoCert, AppNames::sk_decentDHT, nullptr);
-#	else
-		static std::shared_ptr<TlsConfigWithName> tlsCfg = std::make_shared<TlsConfigWithName>(state, TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT, nullptr);
-#	endif // !DHT_USER_TEST
-#else
-		static std::shared_ptr<TlsConfigWithName> tlsCfg = std::make_shared<TlsConfigWithName>(state, TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT, nullptr);
-#endif // ENCLAVE_PLATFORM_NON_ENCLAVE
-		return tlsCfg;
-	}
-}
 
 ConnectionManager::ConnectionManager(size_t cacheSize) :
 	m_sessionCache(cacheSize)
@@ -38,7 +23,7 @@ ConnectionManager::~ConnectionManager()
 {
 }
 
-CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, States & state)
+CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtClient::States & state)
 {
 	std::unique_ptr<ConnectionBase> connection = UntrustedConnectionPool::GetDhtNode(cntPoolPtr, addr);
 
@@ -46,12 +31,12 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, State
 
 #ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
 #	ifndef DHT_USER_TEST
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, GetTlsCfg2Dht(state), false, session);
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), false, session);
 #	else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, GetTlsCfg2Dht(state), true, session);
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), true, session);
 #	endif // !DHT_USER_TEST
 #else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, GetTlsCfg2Dht(state), true, session);
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), true, session);
 #endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 
 	if (!session)
@@ -63,7 +48,7 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, State
 	return CntPair(connection, comm);
 }
 
-CntPair ConnectionManager::GetAny(void* cntPoolPtr, States & state)
+CntPair ConnectionManager::GetAny(void* cntPoolPtr, DhtClient::States & state)
 {
 	std::pair<std::unique_ptr<Net::ConnectionBase>, uint64_t> cntPair = UntrustedConnectionPool::GetAnyDhtNode(cntPoolPtr);
 
@@ -71,12 +56,12 @@ CntPair ConnectionManager::GetAny(void* cntPoolPtr, States & state)
 
 #ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
 #	ifndef DHT_USER_TEST
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, GetTlsCfg2Dht(state), false, session);
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), false, session);
 #	else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, GetTlsCfg2Dht(state), true, session);
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), true, session);
 #	endif // !DHT_USER_TEST
 #else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, GetTlsCfg2Dht(state), true, session);
+	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), true, session);
 #endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 
 	if (!session)

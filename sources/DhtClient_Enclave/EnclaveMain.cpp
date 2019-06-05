@@ -5,10 +5,12 @@
 
 #include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/GeneralKeyTypes.h>
+#include <DecentApi/Common/Ra/TlsConfigWithName.h>
 #include <DecentApi/Common/MbedTls/Hasher.h>
 
 #include "../Common_Enclave/DhtClient/DhtClient.h"
 #include "../Common_Enclave/DhtClient/States.h"
+#include "../Common_Enclave/DhtClient/AppNames.h"
 #include "../Common_Enclave/DhtClient/StatesSingleton.h"
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
 #include "../Common_Enclave/DhtClient/AccessCtrl/AbPolicy.h"
@@ -42,6 +44,15 @@ namespace
 
 extern "C" int ecall_dht_client_init()
 {
+	try
+	{
+		gs_state.SetTlsConfigToDht(
+			std::make_shared<TlsConfigWithName>(gs_state, TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT, nullptr));
+	}
+	catch (const std::exception&)
+	{
+		return false;
+	}
 	return true;
 }
 

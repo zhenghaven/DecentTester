@@ -245,24 +245,19 @@ std::vector<uint8_t> Decent::DhtClient::UserReadData(const uint64_t addr, void *
 	CntPair cntPair = states.GetConnectionMgr().GetNew(cntPoolPtr, addr, states);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	std::shared_ptr<CachedAttributeList> cachedAttrList = std::atomic_load(&(states.GetAttributeCache()));
+	std::shared_ptr<std::vector<uint8_t> > cachedAttrList = states.GetAttributeCache().Get(addr);
 
-	const size_t listBinSize = cachedAttrList ? cachedAttrList->m_list.size() : 0;
-	const size_t certPemSize = cachedAttrList ? cachedAttrList->m_certPem.size() : 0;
+	const size_t listBinSize = cachedAttrList ? cachedAttrList->size() : 0;
 
 	RpcWriter rpc(RpcWriter::CalcSizePrim<NumType>() +
 		RpcWriter::CalcSizePrim<uint8_t[sk_hashSizeByte]>() +
 		RpcWriter::CalcSizePrim<uint8_t>() +
-		RpcWriter::CalcSizeBin(listBinSize) +
-		RpcWriter::CalcSizePrim<general_secp256r1_signature_t>() +
-		RpcWriter::CalcSizeStr(certPemSize), 6);
+		RpcWriter::CalcSizeBin(listBinSize), 4);
 
 	auto funcNum = rpc.AddPrimitiveArg<NumType>();
 	auto Key2Send = rpc.AddPrimitiveArg<uint8_t[sk_hashSizeByte]>();
 	auto hasCache = rpc.AddPrimitiveArg<uint8_t>();
 	auto listBin = rpc.AddBinaryArg(listBinSize);
-	auto cacheSign = rpc.AddPrimitiveArg<general_secp256r1_signature_t>();
-	auto certPem = rpc.AddStringArg(certPemSize);
 
 	funcNum = k_readData;
 	std::copy(key.begin(), key.end(), std::begin(Key2Send.Get()));
@@ -270,9 +265,7 @@ std::vector<uint8_t> Decent::DhtClient::UserReadData(const uint64_t addr, void *
 	if (cachedAttrList)
 	{
 		hasCache = 1; //true
-		std::copy(cachedAttrList->m_list.begin(), cachedAttrList->m_list.end(), listBin.begin());
-		cacheSign = cachedAttrList->m_sign;
-		certPem.Fill(cachedAttrList->m_certPem);
+		std::copy(cachedAttrList->begin(), cachedAttrList->end(), listBin.begin());
 	}
 	else
 	{
@@ -287,20 +280,14 @@ std::vector<uint8_t> Decent::DhtClient::UserReadData(const uint64_t addr, void *
 	auto retData = rpcReturned.GetBinaryArg();
 	const auto& retHasCache = rpcReturned.GetPrimitiveArg<uint8_t>();
 
-	CheckDhtStoreRpcError(retVal);
-
 	if (retHasCache)
 	{
-		std::shared_ptr<CachedAttributeList> updatedCache = std::make_shared<CachedAttributeList>();
-
 		auto retCacheList = rpcReturned.GetBinaryArg();
-		updatedCache->m_sign = rpcReturned.GetPrimitiveArg<general_secp256r1_signature_t>();
-		updatedCache->m_certPem = rpcReturned.GetStringArg();
 
-		updatedCache->m_list = std::vector<uint8_t>(retCacheList.first, retCacheList.second);
-
-		std::atomic_store(&(states.GetAttributeCache()), updatedCache);
+		states.GetAttributeCache().Put(addr, std::make_shared<std::vector<uint8_t> >(retCacheList.first, retCacheList.second), true);
 	}
+
+	CheckDhtStoreRpcError(retVal);
 
 	return std::vector<uint8_t>(retData.first, retData.second);
 }
@@ -313,26 +300,21 @@ void DhtClient::UserUpdateData(const uint64_t addr, void * cntPoolPtr, States & 
 	CntPair cntPair = states.GetConnectionMgr().GetNew(cntPoolPtr, addr, states);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	std::shared_ptr<CachedAttributeList> cachedAttrList = std::atomic_load(&(states.GetAttributeCache()));
+	std::shared_ptr<std::vector<uint8_t> > cachedAttrList = states.GetAttributeCache().Get(addr);
 
-	const size_t listBinSize = cachedAttrList ? cachedAttrList->m_list.size() : 0;
-	const size_t certPemSize = cachedAttrList ? cachedAttrList->m_certPem.size() : 0;
+	const size_t listBinSize = cachedAttrList ? cachedAttrList->size() : 0;
 
 	RpcWriter rpc(RpcWriter::CalcSizePrim<NumType>() +
 		RpcWriter::CalcSizePrim<uint8_t[sk_hashSizeByte]>() +
 		RpcWriter::CalcSizeBin(data.size()) +
 		RpcWriter::CalcSizePrim<uint8_t>() +
-		RpcWriter::CalcSizeBin(listBinSize) +
-		RpcWriter::CalcSizePrim<general_secp256r1_signature_t>() +
-		RpcWriter::CalcSizeStr(certPemSize), 7);
+		RpcWriter::CalcSizeBin(listBinSize), 5);
 
 	auto funcNum = rpc.AddPrimitiveArg<NumType>();
 	auto Key2Send = rpc.AddPrimitiveArg<uint8_t[sk_hashSizeByte]>();
 	auto data2Send = rpc.AddBinaryArg(data.size());
 	auto hasCache = rpc.AddPrimitiveArg<uint8_t>();
 	auto listBin = rpc.AddBinaryArg(listBinSize);
-	auto cacheSign = rpc.AddPrimitiveArg<general_secp256r1_signature_t>();
-	auto certPem = rpc.AddStringArg(certPemSize);
 
 	funcNum = k_updateData;
 	std::copy(key.begin(), key.end(), std::begin(Key2Send.Get()));
@@ -341,9 +323,7 @@ void DhtClient::UserUpdateData(const uint64_t addr, void * cntPoolPtr, States & 
 	if (cachedAttrList)
 	{
 		hasCache = 1; //true
-		std::copy(cachedAttrList->m_list.begin(), cachedAttrList->m_list.end(), listBin.begin());
-		cacheSign = cachedAttrList->m_sign;
-		certPem.Fill(cachedAttrList->m_certPem);
+		std::copy(cachedAttrList->begin(), cachedAttrList->end(), listBin.begin());
 	}
 	else
 	{
@@ -357,20 +337,14 @@ void DhtClient::UserUpdateData(const uint64_t addr, void * cntPoolPtr, States & 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 	const auto& retHasCache = rpcReturned.GetPrimitiveArg<uint8_t>();
 
-	CheckDhtStoreRpcError(retVal);
-
 	if (retHasCache)
 	{
-		std::shared_ptr<CachedAttributeList> updatedCache = std::make_shared<CachedAttributeList>();
-
 		auto retCacheList = rpcReturned.GetBinaryArg();
-		updatedCache->m_sign = rpcReturned.GetPrimitiveArg<general_secp256r1_signature_t>();
-		updatedCache->m_certPem = rpcReturned.GetStringArg();
 
-		updatedCache->m_list = std::vector<uint8_t>(retCacheList.first, retCacheList.second);
-
-		std::atomic_store(&(states.GetAttributeCache()), updatedCache);
+		states.GetAttributeCache().Put(addr, std::make_shared<std::vector<uint8_t> >(retCacheList.first, retCacheList.second), true);
 	}
+
+	CheckDhtStoreRpcError(retVal);
 }
 
 void DhtClient::UserDeleteData(const uint64_t addr, void * cntPoolPtr, States & states, const std::array<uint8_t, sk_hashSizeByte>& key)
@@ -381,24 +355,19 @@ void DhtClient::UserDeleteData(const uint64_t addr, void * cntPoolPtr, States & 
 	CntPair cntPair = states.GetConnectionMgr().GetNew(cntPoolPtr, addr, states);
 	SecureCommLayer& comm = cntPair.GetCommLayer();
 
-	std::shared_ptr<CachedAttributeList> cachedAttrList = std::atomic_load(&(states.GetAttributeCache()));
+	std::shared_ptr<std::vector<uint8_t> > cachedAttrList = states.GetAttributeCache().Get(addr);
 
-	const size_t listBinSize = cachedAttrList ? cachedAttrList->m_list.size() : 0;
-	const size_t certPemSize = cachedAttrList ? cachedAttrList->m_certPem.size() : 0;
+	const size_t listBinSize = cachedAttrList ? cachedAttrList->size() : 0;
 
 	RpcWriter rpc(RpcWriter::CalcSizePrim<NumType>() +
 		RpcWriter::CalcSizePrim<uint8_t[sk_hashSizeByte]>() +
 		RpcWriter::CalcSizePrim<uint8_t>() +
-		RpcWriter::CalcSizeBin(listBinSize) +
-		RpcWriter::CalcSizePrim<general_secp256r1_signature_t>() +
-		RpcWriter::CalcSizeStr(certPemSize), 6);
+		RpcWriter::CalcSizeBin(listBinSize), 4);
 
 	auto funcNum = rpc.AddPrimitiveArg<NumType>();
 	auto Key2Send = rpc.AddPrimitiveArg<uint8_t[sk_hashSizeByte]>();
 	auto hasCache = rpc.AddPrimitiveArg<uint8_t>();
 	auto listBin = rpc.AddBinaryArg(listBinSize);
-	auto cacheSign = rpc.AddPrimitiveArg<general_secp256r1_signature_t>();
-	auto certPem = rpc.AddStringArg(certPemSize);
 
 	funcNum = k_delData;
 	std::copy(key.begin(), key.end(), std::begin(Key2Send.Get()));
@@ -406,9 +375,7 @@ void DhtClient::UserDeleteData(const uint64_t addr, void * cntPoolPtr, States & 
 	if (cachedAttrList)
 	{
 		hasCache = 1; //true
-		std::copy(cachedAttrList->m_list.begin(), cachedAttrList->m_list.end(), listBin.begin());
-		cacheSign = cachedAttrList->m_sign;
-		certPem.Fill(cachedAttrList->m_certPem);
+		std::copy(cachedAttrList->begin(), cachedAttrList->end(), listBin.begin());
 	}
 	else
 	{
@@ -422,18 +389,12 @@ void DhtClient::UserDeleteData(const uint64_t addr, void * cntPoolPtr, States & 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 	const auto& retHasCache = rpcReturned.GetPrimitiveArg<uint8_t>();
 
-	CheckDhtStoreRpcError(retVal);
-
 	if (retHasCache)
 	{
-		std::shared_ptr<CachedAttributeList> updatedCache = std::make_shared<CachedAttributeList>();
-
 		auto retCacheList = rpcReturned.GetBinaryArg();
-		updatedCache->m_sign = rpcReturned.GetPrimitiveArg<general_secp256r1_signature_t>();
-		updatedCache->m_certPem = rpcReturned.GetStringArg();
 
-		updatedCache->m_list = std::vector<uint8_t>(retCacheList.first, retCacheList.second);
-
-		std::atomic_store(&(states.GetAttributeCache()), updatedCache);
+		states.GetAttributeCache().Put(addr, std::make_shared<std::vector<uint8_t> >(retCacheList.first, retCacheList.second), true);
 	}
+
+	CheckDhtStoreRpcError(retVal);
 }

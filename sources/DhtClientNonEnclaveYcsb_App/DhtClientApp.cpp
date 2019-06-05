@@ -1,6 +1,7 @@
 #include "DhtClientApp.h"
 
 #include <DecentApi/Common/Common.h>
+#include <DecentApi/Common/MbedTls/MbedTlsObjects.h>
 #include <DecentApi/Common/Ra/KeyContainer.h>
 #include <DecentApi/Common/Ra/WhiteList/LoadedList.h>
 #include <DecentApi/Common/Ra/WhiteList/DecentServer.h>
@@ -22,6 +23,13 @@ using namespace Decent::DhtClient;
 
 namespace
 {
+	constexpr char const gsk_testPrvKeyPem[] =
+"-----BEGIN EC PRIVATE KEY-----\n\
+MHgCAQEEIQC4yBcECn7U6IcypiTYuhdVDJFkA12MLZnv7BASr8jJfqAKBggqhkjO\n\
+PQMBB6FEA0IABB55Wr8H+zG5mxoMzRcPU81IIF2BJR++VIsNEpHqUuun1sLvKxls\n\
+wQSJ7b1Jo80G2bxm71KndTdg6FhoHtLZ/Gw=\n\
+-----END EC PRIVATE KEY-----";
+
 	static const Decent::Ra::WhiteList::LoadedList& GetLoadedWhiteListImpl(Decent::Ra::WhiteList::LoadedList* instPtr)
 	{
 		static const Decent::Ra::WhiteList::LoadedList inst(instPtr);
@@ -31,7 +39,10 @@ namespace
 
 DhtClientApp::DhtClientApp() :
 	m_certContainer(std::make_unique<Ra::AppCertContainer>()),
-	m_keyContainer(std::make_unique<Ra::KeyContainer>()),
+	m_keyContainer(
+		std::make_unique<Ra::KeyContainer>(
+			std::make_unique<MbedTlsObj::ECKeyPair>(MbedTlsObj::ECKeyPair::FromPemString(gsk_testPrvKeyPem))
+			)),
 	m_serverWl(std::make_unique<Ra::WhiteList::DecentServer>()),
 	m_connectionMgr(std::make_unique<ConnectionManager>(50)),
 	m_states(std::make_unique<DhtClient::States>(*m_certContainer, *m_keyContainer, *m_serverWl, &GetLoadedWhiteListImpl, *m_connectionMgr))

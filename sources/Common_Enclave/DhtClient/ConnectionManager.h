@@ -5,11 +5,6 @@
 
 namespace Decent
 {
-	namespace Ra
-	{
-		class States;
-	}
-
 	namespace MbedTlsObj
 	{
 		class Session;
@@ -17,6 +12,7 @@ namespace Decent
 
 	namespace DhtClient
 	{
+		class States;
 
 		class ConnectionManager
 		{
@@ -25,9 +21,9 @@ namespace Decent
 
 			virtual ~ConnectionManager();
 
-			virtual Net::CntPair GetNew(void* cntPoolPtr, const uint64_t& addr, Ra::States& state);
+			virtual Net::CntPair GetNew(void* cntPoolPtr, const uint64_t& addr, States& state);
 
-			virtual Net::CntPair GetAny(void* cntPoolPtr, Ra::States& state);
+			virtual Net::CntPair GetAny(void* cntPoolPtr, States& state);
 
 		private:
 			Tools::SharedCachingQueue<uint64_t, MbedTlsObj::Session> m_sessionCache;

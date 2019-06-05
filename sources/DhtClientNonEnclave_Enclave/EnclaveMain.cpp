@@ -3,6 +3,8 @@
 #include <vector>
 #include <algorithm>
 
+#include <cppcodec/base64_default_rfc4648.hpp>
+
 #include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/GeneralKeyTypes.h>
@@ -10,10 +12,12 @@
 
 #include <DecentApi/Common/Ra/Crypto.h>
 #include <DecentApi/Common/Ra/KeyContainer.h>
+#include <DecentApi/Common/Ra/TlsConfigWithName.h>
 #include <DecentApi/DecentAppEnclave/AppCertContainer.h>
 
 #include "../Common_Enclave/DhtClient/DhtClient.h"
 #include "../Common_Enclave/DhtClient/States.h"
+#include "../Common_Enclave/DhtClient/AppNames.h"
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
 #include "../Common_Enclave/DhtClient/AccessCtrl/AbPolicy.h"
 #include "../Common_Enclave/DhtClient/AccessCtrl/FullPolicy.h"
@@ -25,6 +29,13 @@ using namespace Decent::MbedTlsObj;
 
 namespace
 {
+	static void GetUserId(States& states, general_256bit_hash& outId)
+	{
+		std::string pubKeyPem = states.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
+
+		Hasher::Calc<HashType::SHA256>(pubKeyPem, outId);
+	}
+
 #ifndef DHT_USER_TEST
 	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy(States& states)
 	{
@@ -88,17 +99,30 @@ namespace
 	}
 #endif // !DHT_USER_TEST
 
-	static const Dht::AccessCtrl::FullPolicy& GetTestAccPolicyStatic(States& states)
+	struct TestAccListInserter
 	{
-		static const Dht::AccessCtrl::FullPolicy inst = GetTestAccPolicy(states);
+		TestAccListInserter(States& statesRef, void* cnt_pool_ptr)
+		{
+			std::string pubKeyPem = statesRef.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
 
-		return inst;
-	}
+			UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "1", GetTestEntityList(pubKeyPem));
+			UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "2", GetTestEntityList(pubKeyPem));
+			UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "3", GetTestEntityList(pubKeyPem));
+			UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "4", GetTestEntityList(pubKeyPem));
+			UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "5", GetTestEntityList(pubKeyPem));
+		}
+	};
 }
 
 extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
 {
 	States& statesRef = *static_cast<States*>(states);
+
+	general_256bit_hash userId;
+	GetUserId(statesRef, userId);
+	std::string userIdStr = cppcodec::base64_rfc4648::encode(userId);
+
+	PRINT_I("Initializing DHT client with ID: %s.", userIdStr.c_str());
 
 	Ra::AppCertContainer& certContainer = statesRef.GetAppCertContainer();
 
@@ -108,15 +132,26 @@ extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
 		certContainer.SetCert(cert);
 	}
 
+	//Set TLS configuration to DHT
 #ifdef DHT_USER_TEST
-	std::string pubKeyPem = statesRef.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
+	statesRef.SetTlsConfigToDht(
+		std::make_shared<Ra::TlsConfigWithName>(statesRef, Ra::TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT, nullptr));
+#else
+	statesRef.SetTlsConfigToDht(
+		std::make_shared<Ra::TlsConfigWithName>(statesRef, Ra::TlsConfigWithName::Mode::ClientNoCert, AppNames::sk_decentDHT, nullptr));
+#endif
 
-	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "1", GetTestEntityList(pubKeyPem));
-	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "2", GetTestEntityList(pubKeyPem));
-	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "3", GetTestEntityList(pubKeyPem));
-	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "4", GetTestEntityList(pubKeyPem));
-	UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "5", GetTestEntityList(pubKeyPem));
+#ifdef DHT_USER_TEST
+	try
+	{
+		static TestAccListInserter inst(statesRef, cnt_pool_ptr);
+	}
+	catch (const std::exception&)
+	{
+	}
 #endif // DHT_USER_TEST
+
+	statesRef.GetTestAccPolicy() = std::make_shared<Dht::AccessCtrl::FullPolicy>(GetTestAccPolicy(statesRef));
 
 	return true;
 }
@@ -139,7 +174,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const v
 #ifndef DHT_USER_TEST
 		AppInsertData(cnt_pool_ptr, statesRef, id, GetTestAccPolicyStatic(statesRef), val);
 #else
-		UserInsertData(cnt_pool_ptr, statesRef, id, GetTestAccPolicyStatic(statesRef), val);
+		UserInsertData(cnt_pool_ptr, statesRef, id, *statesRef.GetTestAccPolicy(), val);
 #endif // !DHT_USER_TEST
 
 		return true;
