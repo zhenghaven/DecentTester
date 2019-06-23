@@ -27,6 +27,8 @@ using namespace Decent;
 using namespace Decent::DhtClient;
 using namespace Decent::MbedTlsObj;
 
+//#define USER_ACCESS_CONTROL_ON
+
 namespace
 {
 	static void GetUserId(States& states, general_256bit_hash& outId)
@@ -44,7 +46,8 @@ namespace
 		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
 	}
 #else
-#	define DHT_USER_TEST_TEST_LABEL "TestList"
+#	ifdef USER_ACCESS_CONTROL_ON
+#		define DHT_USER_TEST_TEST_LABEL "TestList"
 
 	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy(States& states)
 	{
@@ -97,7 +100,6 @@ namespace
 
 		return list;
 	}
-#endif // !DHT_USER_TEST
 
 	struct TestAccListInserter
 	{
@@ -112,6 +114,16 @@ namespace
 			UserInsertAttrList(cnt_pool_ptr, statesRef, DHT_USER_TEST_TEST_LABEL "5", GetTestEntityList(pubKeyPem));
 		}
 	};
+#	else
+	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy(States& states)
+	{
+		Dht::AccessCtrl::EntityItem owner({ 0 });
+
+		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
+	}
+#	endif //USER_ACCESS_CONTROL_ON
+#endif // !DHT_USER_TEST
+
 }
 
 extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
@@ -141,7 +153,7 @@ extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
 		std::make_shared<Ra::TlsConfigWithName>(statesRef, Ra::TlsConfigWithName::Mode::ClientNoCert, AppNames::sk_decentDHT, nullptr));
 #endif
 
-#ifdef DHT_USER_TEST
+#if defined(DHT_USER_TEST) && defined(USER_ACCESS_CONTROL_ON)
 	try
 	{
 		static TestAccListInserter inst(statesRef, cnt_pool_ptr);
@@ -149,7 +161,7 @@ extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
 	catch (const std::exception&)
 	{
 	}
-#endif // DHT_USER_TEST
+#endif // defined(DHT_USER_TEST) && defined(USER_ACCESS_CONTROL_ON)
 
 	statesRef.GetTestAccPolicy() = std::make_shared<Dht::AccessCtrl::FullPolicy>(GetTestAccPolicy(statesRef));
 
@@ -172,7 +184,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const v
 		Hasher::Calc<HashType::SHA256>(key, id);
 
 #ifndef DHT_USER_TEST
-		AppInsertData(cnt_pool_ptr, statesRef, id, GetTestAccPolicyStatic(statesRef), val);
+		AppInsertData(cnt_pool_ptr, statesRef, id, *statesRef.GetTestAccPolicy(), val);
 #else
 		UserInsertData(cnt_pool_ptr, statesRef, id, *statesRef.GetTestAccPolicy(), val);
 #endif // !DHT_USER_TEST

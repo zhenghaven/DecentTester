@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.11)
 #==========================================================
 
 option(DHT_YCSB_TEST "Test set option: Decent DHT test with YCSB" ON)
-set(YCSB_ROOT_DIR ${CMAKE_SOURCE_DIR}/benchmarks/YCSB)
+set(YCSB_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR}/benchmarks/YCSB)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(HUNTER_BOOST_RUNTIME_STATIC ON CACHE BOOL "Switch for using boost runtime static linking." FORCE)

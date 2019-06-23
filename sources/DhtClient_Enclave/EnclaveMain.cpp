@@ -5,16 +5,21 @@
 
 #include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/GeneralKeyTypes.h>
+#include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/Ra/TlsConfigWithName.h>
 #include <DecentApi/Common/MbedTls/Hasher.h>
+
+#include <DecentApi/CommonEnclave/Tools/Crypto.h>
 
 #include "../Common_Enclave/DhtClient/DhtClient.h"
 #include "../Common_Enclave/DhtClient/States.h"
 #include "../Common_Enclave/DhtClient/AppNames.h"
 #include "../Common_Enclave/DhtClient/StatesSingleton.h"
 #include "../Common_Enclave/DhtClient/ConnectionManager.h"
+
 #include "../Common_Enclave/DhtClient/AccessCtrl/AbPolicy.h"
 #include "../Common_Enclave/DhtClient/AccessCtrl/FullPolicy.h"
+#include "../Common_Enclave/DhtClient/AccessCtrl/EntityList.h"
 
 #include "Enclave_t.h"
 
@@ -23,15 +28,56 @@ using namespace Decent::DhtClient;
 using namespace Decent::Ra;
 using namespace Decent::MbedTlsObj;
 
+//#define ENCLAVE_ACCESS_CONTROL_ON
+
 namespace
 {
 	static DhtClient::States& gs_state = GetStatesSingleton();
 
 	static Dht::AccessCtrl::FullPolicy GetTestAccPolicy()
 	{
-		Dht::AccessCtrl::EntityItem owner({ 0 });
+		using namespace Dht::AccessCtrl;
 
-		return Dht::AccessCtrl::FullPolicy(owner, Dht::AccessCtrl::EntityBasedControl::AllowAll(), Dht::AccessCtrl::AttributeBasedControl::AllowAll());
+		const std::vector<uint8_t>& selfHashBin = Tools::GetSelfHash();
+		general_256bit_hash selfHash;
+		if (selfHashBin.size() != sizeof(general_256bit_hash))
+		{
+			throw Decent::RuntimeException("Feature not supported.");
+		}
+		std::copy(selfHashBin.begin(), selfHashBin.end(), std::begin(selfHash));
+
+		EntityItem owner({ selfHash });
+
+#ifdef ENCLAVE_ACCESS_CONTROL_ON
+		std::unique_ptr<EntityList> enclaveList1 = Tools::make_unique<EntityList>();
+		enclaveList1->Insert(owner);
+		enclaveList1->Insert(EntityItem({ 1 }));
+		enclaveList1->Insert(EntityItem({ 2 }));
+		enclaveList1->Insert(EntityItem({ 3 }));
+		enclaveList1->Insert(EntityItem({ 4 }));
+		enclaveList1->Insert(EntityItem({ 5 }));
+		enclaveList1->Insert(EntityItem({ 6 }));
+		enclaveList1->Insert(EntityItem({ 7 }));
+		enclaveList1->Insert(EntityItem({ 8 }));
+		enclaveList1->Insert(EntityItem({ 9 }));
+		std::unique_ptr<EntityList> enclaveList2 = Tools::make_unique<EntityList>();
+		enclaveList2->Insert(owner);
+		enclaveList2->Insert(EntityItem({ 1 }));
+		enclaveList2->Insert(EntityItem({ 2 }));
+		enclaveList2->Insert(EntityItem({ 3 }));
+		enclaveList2->Insert(EntityItem({ 4 }));
+		enclaveList2->Insert(EntityItem({ 5 }));
+		enclaveList2->Insert(EntityItem({ 6 }));
+		enclaveList2->Insert(EntityItem({ 7 }));
+		enclaveList2->Insert(EntityItem({ 8 }));
+		enclaveList2->Insert(EntityItem({ 9 }));
+
+		EntityBasedControl enclaveControl(std::move(enclaveList1), std::move(enclaveList2), nullptr);
+#else
+		EntityBasedControl enclaveControl = EntityBasedControl::AllowAll();
+#endif
+
+		return FullPolicy(owner, std::move(enclaveControl), AttributeBasedControl::AllowAll());
 	}
 
 	static const Dht::AccessCtrl::FullPolicy& GetTestAccPolicyStatic()
