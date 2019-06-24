@@ -6,19 +6,20 @@
 #include <DecentApi/Common/Ra/RequestCategory.h>
 #include <DecentApi/Common/Ra/WhiteList/WhiteList.h>
 
-#include <DecentApi/CommonApp/Tools/DiskFile.h>
-#include <DecentApi/CommonApp/Tools/ConfigManager.h>
-#include <DecentApi/CommonApp/Tools/FileSystemUtil.h>
 #include <DecentApi/CommonApp/Net/TCPConnection.h>
+#include <DecentApi/CommonApp/Tools/DiskFile.h>
+#include <DecentApi/CommonApp/Tools/FileSystemUtil.h>
+
+#include <DecentApi/DecentAppApp/DecentAppConfig.h>
 
 #include "../Common_App/DhtClient/ConnectionPool.h"
 #include "DhtClientApp.h"
 #include "DhtClientAppPkg.h"
 
 using namespace Decent;
-using namespace Decent::Tools;
 using namespace Decent::Ra;
 using namespace Decent::Net;
+using namespace Decent::Tools;
 using namespace Decent::DhtClient;
 
 namespace
@@ -37,16 +38,17 @@ namespace
 		return res;
 	}
 
-	const ConfigManager& GetConfigManager()
+	const AppConfig::DecentAppConfig& GetConfigManager()
 	{
-		static ConfigManager configManager(GetConfigJsonStr());
+		static AppConfig::DecentAppConfig configManager(GetConfigJsonStr());
 
 		return configManager;
 	}
 
-	const ConfigItem& GetDecentServerItem()
+	const AppConfig::EnclaveListItem& GetDecentServerItem()
 	{
-		static const ConfigItem& decentServerItem = GetConfigManager().GetItem(WhiteList::sk_nameDecentServer);
+		static const AppConfig::EnclaveListItem& decentServerItem =
+			GetConfigManager().GetEnclaveList().GetItem(WhiteList::sk_nameDecentServer);
 		return decentServerItem;
 	}
 
@@ -71,7 +73,7 @@ namespace
 		std::unique_ptr<ConnectionBase> serverCon = GetDecentServerConnection();
 		serverCon->SendPack(Ra::RequestCategory::sk_loadWhiteList);
 		serverCon->SendPack(gsk_whiteListKey);
-		serverCon->SendPack(GetConfigManager().GetLoadedWhiteListStr());
+		serverCon->SendPack(GetConfigManager().GetEnclaveList().GetLoadedWhiteListStr());
 		char ackMsg[] = "ACK";
 		serverCon->ReceiveRawGuarantee(&ackMsg, sizeof(ackMsg));
 	}
@@ -93,7 +95,7 @@ JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPo
 	boost::filesystem::path tokenPath = GetKnownFolderPath(KnownFolderType::LocalAppDataEnclave).append(TOKEN_FILENAME);
 
 	DhtClientAppPkg* res = new DhtClientAppPkg;
-	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager());
+	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager().GetEnclaveList());
 	res->m_app = Tools::make_unique<DhtClientApp>(ENCLAVE_FILENAME, tokenPath, gsk_whiteListKey, *GetDecentServerConnection());
 
 	res->m_app->Init();

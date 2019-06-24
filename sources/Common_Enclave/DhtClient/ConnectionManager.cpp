@@ -31,21 +31,20 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtCl
 
 #ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
 #	ifndef DHT_USER_TEST
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), false, session);
+	std::unique_ptr<TlsCommLayer> secComm = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), false, session);
 #	else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), true, session);
+	std::unique_ptr<TlsCommLayer> secComm = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), true, session);
 #	endif // !DHT_USER_TEST
 #else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), true, session);
+	std::unique_ptr<TlsCommLayer> secComm = Tools::make_unique<TlsCommLayer>(*connection, state.GetTlsConfigToDht(), true, session);
 #endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 
 	if (!session)
 	{
-		m_sessionCache.Put(addr, tls->GetSessionCopy(), false);
+		m_sessionCache.Put(addr, secComm->GetSessionCopy(), false);
 	}
 
-	std::unique_ptr<SecureCommLayer> comm = std::move(tls);
-	return CntPair(connection, comm);
+	return CntPair(std::move(connection), std::move(secComm));
 }
 
 CntPair ConnectionManager::GetAny(void* cntPoolPtr, DhtClient::States & state)
@@ -56,19 +55,18 @@ CntPair ConnectionManager::GetAny(void* cntPoolPtr, DhtClient::States & state)
 
 #ifdef ENCLAVE_PLATFORM_NON_ENCLAVE
 #	ifndef DHT_USER_TEST
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), false, session);
+	std::unique_ptr<TlsCommLayer> secComm = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), false, session);
 #	else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), true, session);
+	std::unique_ptr<TlsCommLayer> secComm = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), true, session);
 #	endif // !DHT_USER_TEST
 #else
-	std::unique_ptr<TlsCommLayer> tls = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), true, session);
+	std::unique_ptr<TlsCommLayer> secComm = Tools::make_unique<TlsCommLayer>(*cntPair.first, state.GetTlsConfigToDht(), true, session);
 #endif // ENCLAVE_PLATFORM_NON_ENCLAVE
 
 	if (!session)
 	{
-		m_sessionCache.Put(cntPair.second, tls->GetSessionCopy(), false);
+		m_sessionCache.Put(cntPair.second, secComm->GetSessionCopy(), false);
 	}
 
-	std::unique_ptr<SecureCommLayer> comm = std::move(tls);
-	return CntPair(cntPair.first, comm);
+	return CntPair(std::move(cntPair.first), std::move(secComm));
 }

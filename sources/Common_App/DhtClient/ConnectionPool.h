@@ -6,9 +6,9 @@
 
 namespace Decent
 {
-	namespace Tools
+	namespace AppConfig
 	{
-		class ConfigManager;
+		class EnclaveList;
 	}
 
 	namespace DhtClient
@@ -18,7 +18,7 @@ namespace Decent
 		public:
 			ConnectionPool() = delete;
 
-			ConnectionPool(size_t maxInCnt, size_t maxOutCnt, const Tools::ConfigManager& cfgMgr);
+			ConnectionPool(size_t maxInCnt, size_t maxOutCnt, const AppConfig::EnclaveList& cfgEnclaveList);
 
 			virtual ~ConnectionPool();
 

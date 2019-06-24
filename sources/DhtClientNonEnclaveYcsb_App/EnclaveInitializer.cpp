@@ -7,7 +7,8 @@
 #include <DecentApi/Common/Ra/WhiteList/WhiteList.h>
 
 #include <DecentApi/CommonApp/Tools/DiskFile.h>
-#include <DecentApi/CommonApp/Tools/ConfigManager.h>
+
+#include <DecentApi/DecentAppApp/DecentAppConfig.h>
 
 #include "DhtClientAppPkg.h"
 #include "../Common_App/DhtClient/ConnectionPool.h"
@@ -35,9 +36,9 @@ namespace
 		return res;
 	}
 
-	const ConfigManager& GetConfigManager()
+	const AppConfig::DecentAppConfig& GetConfigManager()
 	{
-		static ConfigManager configManager(GetConfigJsonStr());
+		static AppConfig::DecentAppConfig configManager(GetConfigJsonStr());
 
 		return configManager;
 	}
@@ -46,10 +47,10 @@ namespace
 JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPoolSize)
 {
 	DhtClientAppPkg* res = new DhtClientAppPkg;
-	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager());
+	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager().GetEnclaveList());
 	res->m_app = Tools::make_unique<DhtClientApp>();
 
-	res->m_app->Init(res->m_cntPool, GetConfigManager().GetLoadedWhiteList());
+	res->m_app->Init(res->m_cntPool, GetConfigManager().GetEnclaveList().GetLoadedWhiteList());
 
 	return res;
 }

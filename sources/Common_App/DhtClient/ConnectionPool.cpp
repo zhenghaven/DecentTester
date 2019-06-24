@@ -6,7 +6,7 @@
 #include <DecentApi/Common/Common.h>
 
 #include <DecentApi/CommonApp/Net/TCPConnection.h>
-#include <DecentApi/CommonApp/Tools/ConfigManager.h>
+#include <DecentApi/CommonApp/AppConfig/EnclaveList.h>
 
 #include "AppNames.h"
 
@@ -16,29 +16,29 @@ using namespace Decent::Tools;
 
 namespace
 {
-	static uint64_t GetFirstKnownAddress(const ConfigManager& cfgMgr)
+	static uint64_t GetFirstKnownAddress(const AppConfig::EnclaveList& cfgEnclaveList)
 	{
 		return Net::TCPConnection::CombineIpAndPort(
-			Net::TCPConnection::GetIpAddressFromStr(cfgMgr.GetItem(AppNames::sk_decentDHT).GetAddr()),
+			Net::TCPConnection::GetIpAddressFromStr(cfgEnclaveList.GetItem(AppNames::sk_decentDHT).GetAddr()),
 			57756U);
 	}
 
-	static uint64_t GetAddressInConfig(const ConfigManager& cfgMgr)
+	static uint64_t GetAddressInConfig(const AppConfig::EnclaveList& cfgEnclaveList)
 	{
 		return Net::TCPConnection::CombineIpAndPort(
-			Net::TCPConnection::GetIpAddressFromStr(cfgMgr.GetItem(AppNames::sk_decentDHT).GetAddr()),
-			cfgMgr.GetItem(AppNames::sk_decentDHT).GetPort());
+			Net::TCPConnection::GetIpAddressFromStr(cfgEnclaveList.GetItem(AppNames::sk_decentDHT).GetAddr()),
+			cfgEnclaveList.GetItem(AppNames::sk_decentDHT).GetPort());
 	}
 }
 
-ConnectionPool::ConnectionPool(size_t maxInCnt, size_t maxOutCnt, const ConfigManager& cfgMgr) : 
+ConnectionPool::ConnectionPool(size_t maxInCnt, size_t maxOutCnt, const AppConfig::EnclaveList& cfgEnclaveList) :
 	Net::ConnectionPool<uint64_t>(maxInCnt, maxOutCnt), 
 	m_rd(),
 	m_randGen(m_rd()),
 	m_knownNodeAddr(),
 	m_uniDist()
 {
-	for (uint64_t a = GetFirstKnownAddress(cfgMgr); a <= GetAddressInConfig(cfgMgr); ++a)
+	for (uint64_t a = GetFirstKnownAddress(cfgEnclaveList); a <= GetAddressInConfig(cfgEnclaveList); ++a)
 	{
 		m_knownNodeAddr.push_back(a);
 	}
