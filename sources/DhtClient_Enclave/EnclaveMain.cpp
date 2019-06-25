@@ -88,12 +88,16 @@ namespace
 	}
 }
 
-extern "C" int ecall_dht_client_init()
+extern "C" int ecall_dht_client_init(void* ias_cntor, const sgx_spid_t* spid, uint64_t enclave_Id)
 {
 	try
 	{
 		gs_state.SetTlsConfigToDht(
 			std::make_shared<TlsConfigWithName>(gs_state, TlsConfigWithName::Mode::ClientHasCert, AppNames::sk_decentDHT, nullptr));
+
+		gs_state.SetIasConnector(ias_cntor);
+		gs_state.SetEnclaveId(enclave_Id);
+		gs_state.SetSpid(std::make_shared<sgx_spid_t>(*spid));
 	}
 	catch (const std::exception&)
 	{

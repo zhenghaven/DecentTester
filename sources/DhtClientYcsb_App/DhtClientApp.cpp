@@ -5,8 +5,37 @@
 
 #include "Enclave_u.h"
 
+#define DECENT_DHT_NAIVE_RA_VER
+
+#ifdef DECENT_DHT_NAIVE_RA_VER
+#	include<cppcodec/hex_upper.hpp>
+#	include <DecentApi/CommonApp/SGX/IasConnector.h>
+#endif // DECENT_DHT_NAIVE_RA_VER
+
 using namespace Decent::Net;
 using namespace Decent::DhtClient;
+
+DhtClientApp::DhtClientApp(const std::string & enclavePath, const std::string & tokenPath, const std::string & wListKey, ConnectionBase & serverConn) :
+	DecentApp(enclavePath, tokenPath, wListKey, serverConn)
+{
+}
+
+DhtClientApp::DhtClientApp(const fs::path & enclavePath, const fs::path & tokenPath, const std::string & wListKey, ConnectionBase & serverConn) :
+	DecentApp(enclavePath, tokenPath, wListKey, serverConn)
+{
+}
+
+DhtClientApp::DhtClientApp(const std::string & enclavePath, const std::string & tokenPath, const size_t numTWorker, const size_t numUWorker,
+	const size_t retryFallback, const size_t retrySleep, const std::string & wListKey, ConnectionBase & serverConn) :
+	DecentApp(enclavePath, tokenPath, numTWorker, numUWorker, retryFallback, retrySleep, wListKey, serverConn)
+{
+}
+
+DhtClientApp::DhtClientApp(const fs::path & enclavePath, const fs::path & tokenPath, const size_t numTWorker, const size_t numUWorker,
+	const size_t retryFallback, const size_t retrySleep, const std::string & wListKey, ConnectionBase & serverConn) :
+	DecentApp(enclavePath, tokenPath, numTWorker, numUWorker, retryFallback, retrySleep, wListKey, serverConn)
+{
+}
 
 DhtClientApp::~DhtClientApp()
 {
@@ -14,9 +43,23 @@ DhtClientApp::~DhtClientApp()
 
 void DhtClientApp::Init()
 {
+	sgx_spid_t spid;
+
+#ifdef DECENT_DHT_NAIVE_RA_VER
+
+	m_ias = std::make_unique<Ias::Connector>("key");
+	std::string spidStr = "AA";
+	cppcodec::hex_upper::decode(spid.id, sizeof(spid.id), spidStr);
+
+#endif // DECENT_DHT_NAIVE_RA_VER
+
 	int enclaveRet = true;
-	sgx_status_t sgxRet = ecall_dht_client_init(GetEnclaveId(), &enclaveRet);
-	DECENT_CHECK_SGX_STATUS_ERROR(sgxRet, ecall_dht_client_init);
+
+#ifdef DECENT_DHT_NAIVE_RA_VER
+	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, m_ias.get(), &spid, GetEnclaveId());
+#else
+	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, nullptr, &spid, GetEnclaveId());
+#endif // DECENT_DHT_NAIVE_RA_VER
 
 	if (!enclaveRet)
 	{

@@ -10,6 +10,15 @@
 
 #include "AccessCtrl/FullPolicy.h"
 
+#if defined(ENCLAVE_PLATFORM_SGX)
+#	include <sgx_quote.h>
+#else
+typedef struct _spid_t
+{
+	uint8_t             id[16];
+} sgx_spid_t;
+#endif
+
 namespace Decent
 {
 	namespace DhtClient
@@ -68,6 +77,36 @@ namespace Decent
 				return m_tlsCfg2Dht;
 			}
 
+			void SetIasConnector(void* ptr)
+			{
+				m_iasCntor = ptr;
+			}
+
+			void* GetIasConnector() const
+			{
+				return m_iasCntor;
+			}
+
+			void SetEnclaveId(uint64_t enclaveId)
+			{
+				m_enclaveId = enclaveId;
+			}
+
+			uint64_t GetEnclaveId() const
+			{
+				return m_enclaveId;
+			}
+
+			void SetSpid(std::shared_ptr<sgx_spid_t> spid)
+			{
+				m_spid = spid;
+			}
+
+			std::shared_ptr<const sgx_spid_t> GetSpid() const
+			{
+				return m_spid;
+			}
+
 		private:
 			ConnectionManager& m_cntMgr;
 
@@ -76,6 +115,10 @@ namespace Decent
 			std::shared_ptr<Dht::AccessCtrl::FullPolicy> m_testAccPolicy;
 
 			std::shared_ptr<Ra::TlsConfigWithName> m_tlsCfg2Dht;
+
+			void* m_iasCntor;
+			uint64_t m_enclaveId;
+			std::shared_ptr<sgx_spid_t> m_spid;
 		};
 	}
 }
