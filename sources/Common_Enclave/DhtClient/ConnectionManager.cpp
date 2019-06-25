@@ -31,8 +31,11 @@ namespace
 #endif // DECENT_DHT_NAIVE_RA_VER
 }
 
-ConnectionManager::ConnectionManager(size_t cacheSize) :
-	m_sessionCache(cacheSize)
+ConnectionManager::ConnectionManager(size_t cacheSize, int8_t opCountMax) :
+	m_sessionCache(cacheSize),
+	m_opCountMax(opCountMax),
+	m_opCountMutex(),
+	m_opCount(0)
 {
 }
 
@@ -85,6 +88,18 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtCl
 	}
 
 #endif //DECENT_DHT_NAIVE_RA_VER
+
+	if (m_opCountMax > 0)
+	{
+		m_opCount++;
+
+		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
+		if (m_opCount >= m_opCountMax)
+		{
+			m_sessionCache.Clear();
+			m_opCount = 0;
+		}
+	}
 
 	return CntPair(std::move(connection), std::move(secComm));
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include<mutex>
+
 #include <DecentApi/Common/Tools/SharedCachingQueue.h>
 #include <DecentApi/Common/Net/SecureConnectionPoolBase.h>
 
@@ -25,7 +27,7 @@ namespace Decent
 		class ConnectionManager
 		{
 		public:
-			ConnectionManager(size_t cacheSize);
+			ConnectionManager(size_t cacheSize, int8_t opCountMax);
 
 			virtual ~ConnectionManager();
 
@@ -39,6 +41,10 @@ namespace Decent
 #else
 			Tools::SharedCachingQueue<uint64_t, MbedTlsObj::Session> m_sessionCache;
 #endif
+
+			const int8_t m_opCountMax;
+			std::mutex m_opCountMutex;
+			uint8_t m_opCount;
 		};
 	}
 }

@@ -44,7 +44,7 @@ DhtClientApp::DhtClientApp() :
 			std::make_unique<MbedTlsObj::ECKeyPair>(MbedTlsObj::ECKeyPair::FromPemString(gsk_testPrvKeyPem))
 			)),
 	m_serverWl(std::make_unique<Ra::WhiteList::DecentServer>()),
-	m_connectionMgr(std::make_unique<ConnectionManager>(50)),
+	m_connectionMgr(std::make_unique<ConnectionManager>(50, 5)),
 	m_states(std::make_unique<DhtClient::States>(*m_certContainer, *m_keyContainer, *m_serverWl, &GetLoadedWhiteListImpl, *m_connectionMgr))
 {
 }
