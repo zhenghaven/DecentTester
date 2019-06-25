@@ -60,10 +60,9 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtCl
 				Sgx::RaProcessorSp::sk_defaultRpDataVrfy, quoteVrfy),
 			session);
 
-	std::shared_ptr<const Sgx::RaClientSession> neSession = secComm->GetClientSession();
-	if (session != neSession)
+	if (!session)
 	{
-		m_sessionCache.Put(addr, neSession, false);
+		m_sessionCache.Put(addr, secComm->GetClientSession(), false);
 	}
 
 #else
@@ -121,10 +120,9 @@ CntPair ConnectionManager::GetAny(void* cntPoolPtr, DhtClient::States & state)
 				Sgx::RaProcessorSp::sk_defaultRpDataVrfy, quoteVrfy),
 			session);
 
-	std::shared_ptr<const Sgx::RaClientSession> neSession = secComm->GetClientSession();
-	if (session != neSession)
+	if (!session)
 	{
-		m_sessionCache.Put(cntPair.second, neSession, false);
+		m_sessionCache.Put(cntPair.second, secComm->GetClientSession(), false);
 	}
 
 #else

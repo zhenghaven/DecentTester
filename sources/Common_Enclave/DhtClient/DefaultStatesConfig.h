@@ -42,7 +42,7 @@ namespace
 
 	static ConnectionManager& GetConnectionMgr()
 	{
-		static ConnectionManager inst(50, 5);
+		static ConnectionManager inst(50, 10);
 		return inst;
 	}
 }

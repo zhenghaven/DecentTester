@@ -1,6 +1,7 @@
 #include "DhtClientApp.h"
 
 #include <DecentApi/Common/SGX/RuntimeError.h>
+#include <DecentApi/CommonApp/SGX/IasConnector.h>
 #include <DecentApi/CommonApp/Base/EnclaveException.h>
 
 #include "Enclave_u.h"
@@ -9,7 +10,6 @@
 
 #ifdef DECENT_DHT_NAIVE_RA_VER
 #	include<cppcodec/hex_upper.hpp>
-#	include <DecentApi/CommonApp/SGX/IasConnector.h>
 #endif // DECENT_DHT_NAIVE_RA_VER
 
 using namespace Decent::Net;
