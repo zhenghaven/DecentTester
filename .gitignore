@@ -35,11 +35,11 @@
 *build*/
 .idea
 
-#Enclave EDL generated files
+# Enclave EDL generated files
 *_t.h
 *_t.c
 *_u.h
 *_u.c
 
-#Mac OS
+# Mac OS
 *.DS_Store
