@@ -89,7 +89,7 @@ def GetYcsbWorkloadPath(filename):
 
 	return os.path.join(GetYcsbHomePath(), 'workloads', filename)
 
-def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, attemptNum):
+def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCount, attemptNum):
 
 	print('INFO:', 'Loading the database...')
 
@@ -114,7 +114,7 @@ def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, attemptN
 	options += ['-p', ('measurementtype=' + 'raw')]
 	options += ['-p', ('measurement.raw.output_file=' + (outRawPath))]
 
-	command = ['cmd.exe', '/c', ycsbPath, 'load', CLIENT_BINDING_NAME, '-P', GetYcsbWorkloadPath(workload), '-threads', '10']
+	command = ['cmd.exe', '/c', ycsbPath, 'load', CLIENT_BINDING_NAME, '-P', GetYcsbWorkloadPath(workload), '-threads', str(threadCount)]
 	command += options
 	command += ['>', outRepPath]
 
@@ -157,7 +157,7 @@ def RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTim
 
 def RunOneAttempt(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
 
-	LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, attemptNum)
+	LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1], attemptNum)
 
 	for threadCount in THREAD_COUNT_LIST:
 		RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, attemptNum)
