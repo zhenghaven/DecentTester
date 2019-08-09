@@ -1,51 +1,77 @@
-import pandas as pd 
-import sys
 import os
+import sys
+import argparse
+import pandas as pd
 
-inputfilepath = sys.argv[1]
-outputfilepath = inputfilepath + '.opt'
-time_ignore = int(sys.argv[2])
+def PreProcCsv(oriFilePath, resFilePath):
 
-# inputfilepath = '/Users/xiaoweic/Desktop/Attempt_01_02_40.csv'
-# outputfilepath = '/Users/xiaoweic/Desktop/Attempt_01_02_40.csv.opt'
-# time_ignore = 20
+	inputfile= open(oriFilePath, 'r')
+	outputfile = open(resFilePath, "w")
 
-inputfile= open(inputfilepath, 'r')
-lines = inputfile.readlines()
+	outputfile.write('Op,Timestamp_ms,Latency_us\n')
 
-outputfile = open(outputfilepath, "w")
-outputfile.write('op,timestamp(ms),latency(us)\n')
-for line in lines:
-    if 'timestamp(ms)' not in line:
-        outputfile.write(line)
+	lines = inputfile.readlines()
+	for line in lines:
+		if 'timestamp(ms)' not in line:
+			outputfile.write(line)
 
-inputfile.close()
-outputfile.close()
+	inputfile.close()
+	outputfile.close()
 
-data = pd.read_csv(outputfilepath) 
-data.sort_values(by=['timestamp(ms)'], inplace=True)
-data = data.reset_index(drop=True)
+def TrimOffWarmUpPhase(dataF, warmUpTime):
 
-length = data.shape[0]
-starttime = data.iat[0,1]
-trimindex = 0 
+	dataF.sort_values(by=['Timestamp_ms'], inplace=True)
+	dataF = dataF.reset_index(drop=True)
 
-for i in range(0,length):
-    if data.iat[i,1] - starttime >= time_ignore*1000:
-        trimindex = i
-        break
+	length = dataF.shape[0]
+	starttime = dataF.iat[0,1]
+	trimindex = 0
 
-data = data[trimindex:]
-data = data.reset_index(drop=True)
-throughtput = data.shape[0]/((data.iat[data.shape[0]-1,1]-data.iat[0,1])/1000)
+	for i in range(0, length):
+		if dataF.iat[i,1] - starttime >= warmUpTime * 1000:
+			trimindex = i
+			break
 
-data.sort_values(by=['latency(us)'], inplace=True)
-data = data.reset_index(drop=True)
-length = data.shape[0]
-latency95 = data.iat[int(length*0.95//1),2] 
-print('')
-print('Total OPs:'+ str(length))
-print('Throughput(ops/s):'+ str(throughtput))
-print('95Percentil_latency(us):' + str(latency95))
-print('')
-os.remove(outputfilepath)
+	return dataF[trimindex:].reset_index(drop=True)
+
+def ProcOneResultSet(inputfilepath, warmUpTime, percentile):
+
+	time_ignore = int()
+
+	#Generate intermediate file:
+	immedfilepath = inputfilepath + '.tmp'
+	PreProcCsv(inputfilepath, immedfilepath)
+
+	dataF = pd.read_csv(immedfilepath)
+	os.remove(immedfilepath)
+
+	dataF = TrimOffWarmUpPhase(dataF, warmUpTime)
+	#dataF.to_csv(immedfilepath)
+
+	totalOps = dataF.shape[0]
+	timeElapsedMs = dataF.iat[totalOps - 1, 1] - dataF.iat[0, 1] #In millisecond
+	timeElapsedS = timeElapsedMs / 1000 # In sec
+	throughtput = totalOps / timeElapsedS
+	latencyPer = dataF.Latency_us.quantile(q=(percentile / 100.0), interpolation='higher')
+
+	return totalOps, timeElapsedMs, throughtput, latencyPer
+
+def main():
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--file', required=True)
+	parser.add_argument('--warmUpTime', required=True, type=int)
+	parser.add_argument('--percentile', required=True, type=int)
+
+	args = parser.parse_args()
+
+	totalOps, timeElapsedMs, throughtput, latencyPer = ProcOneResultSet(args.file, args.warmUpTime, args.percentile)
+
+	print('')
+	print('Total OPs:', str(totalOps))
+	print('Throughput(ops/s):', str(throughtput))
+	print(str(args.percentile), 'Percentil_latency(us):', str(latencyPer))
+	print('')
+
+if __name__ == '__main__':
+	sys.exit(main())
