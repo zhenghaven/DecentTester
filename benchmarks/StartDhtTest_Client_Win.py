@@ -16,6 +16,8 @@ DHT_SERVER_PORT_BEGIN = 57756
 
 THREAD_COUNT_LIST = [40]
 
+MAX_OP_PER_TICKET_LIST = [500, 1000]
+
 BENCHMARKS_HOME_PATH = '.'
 
 def GetBuildDirPath():
@@ -51,6 +53,10 @@ def WaitFor(sec):
 		print('INFO:', 'Execute next command in ' + str(leftSec) + ' second(s).')
 		time.sleep(1)
 		leftSec = leftSec - 1
+
+def SetJavaSysProperty(maxOpPerTicket):
+
+	os.environ['JAVA_OPTS'] = '-DDecent.maxOpPerTicket="' + str(maxOpPerTicket) + '"'
 
 def GetOutputDirPath(workload, dist, recCount, maxTime):
 
@@ -89,7 +95,7 @@ def GetYcsbWorkloadPath(filename):
 
 	return os.path.join(GetYcsbHomePath(), 'workloads', filename)
 
-def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCount, attemptNum):
+def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket, attemptNum):
 
 	print('INFO:', 'Loading the database...')
 
@@ -118,21 +124,23 @@ def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCo
 	command += options
 	command += ['>', outRepPath]
 
+	print('INFO:', 'Loading database with maxOpPerTicket =', maxOpPerTicket)
+	SetJavaSysProperty(maxOpPerTicket)
 	ExecuteYcsbTestCommand(command)
 
-def RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, attemptNum):
+def RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, attemptNum):
 
 	print('INFO:', 'Running the test...')
 
 	#output report path
-	outRepPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '.txt'
+	outRepPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.txt'
 	outRepPath = os.path.join(outDir, outRepPath)
 
 	if os.path.exists(outRepPath):
 		raise FileExistsError('The output report file, with path ' + outRepPath + ', already exist!')
 
 	#output raw data path
-	outRawPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '.csv'
+	outRawPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.csv'
 	outRawPath = os.path.join(outDir, outRawPath)
 
 	if os.path.exists(outRawPath):
@@ -147,20 +155,21 @@ def RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTim
 	options += ['-p', ('measurementtype=' + 'raw')]
 	options += ['-p', ('measurement.raw.output_file=' + (outRawPath))]
 
-	
-
 	command = ['cmd.exe', '/c', ycsbPath, 'run', CLIENT_BINDING_NAME, '-P', GetYcsbWorkloadPath(workload), '-threads', str(threadCount)]
 	command += options
 	command += ['>', outRepPath]
 
+	print('INFO:', 'Running test with maxOpPerTicket =', maxOpPerTicket)
+	SetJavaSysProperty(maxOpPerTicket)
 	ExecuteYcsbTestCommand(command)
 
 def RunOneAttempt(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
 
-	LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1], attemptNum)
+	LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1], MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1], attemptNum)
 
 	for threadCount in THREAD_COUNT_LIST:
-		RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, attemptNum)
+		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
+			RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, attemptNum)
 
 def SendNumOfNode(conn, numOfNode):
 

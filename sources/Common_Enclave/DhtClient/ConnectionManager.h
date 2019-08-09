@@ -27,9 +27,17 @@ namespace Decent
 		class ConnectionManager
 		{
 		public:
-			ConnectionManager(size_t cacheSize, int8_t opCountMax);
+			ConnectionManager(size_t cacheSize, int64_t opCountMax);
 
 			virtual ~ConnectionManager();
+
+			/**
+			 * \brief	Re-initializes the maximum number of operation count. Note: opCountMax is not thread-
+			 * 			safe, thus, do not call this function after the initialization phase.
+			 *
+			 * \param	opCountMax	The operation count maximum.
+			 */
+			void InitOpCountMax(int64_t opCountMax);
 
 			virtual Net::CntPair GetNew(void* cntPoolPtr, const uint64_t& addr, States& state);
 
@@ -42,9 +50,9 @@ namespace Decent
 			Tools::SharedCachingQueue<uint64_t, MbedTlsObj::Session> m_sessionCache;
 #endif
 
-			const int8_t m_opCountMax;
+			int64_t m_opCountMax;
 			std::mutex m_opCountMutex;
-			uint8_t m_opCount;
+			uint64_t m_opCount;
 		};
 	}
 }

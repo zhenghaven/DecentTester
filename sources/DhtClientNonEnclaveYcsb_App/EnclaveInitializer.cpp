@@ -44,13 +44,13 @@ namespace
 	}
 }
 
-JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPoolSize)
+JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPoolSize, int64_t maxOpPerTicket)
 {
 	DhtClientAppPkg* res = new DhtClientAppPkg;
 	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager().GetEnclaveList());
 	res->m_app = Tools::make_unique<DhtClientApp>();
 
-	res->m_app->Init(res->m_cntPool, GetConfigManager().GetEnclaveList().GetLoadedWhiteList());
+	res->m_app->Init(res->m_cntPool, GetConfigManager().GetEnclaveList().GetLoadedWhiteList(), maxOpPerTicket);
 
 	return res;
 }

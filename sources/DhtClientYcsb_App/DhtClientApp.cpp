@@ -41,7 +41,7 @@ DhtClientApp::~DhtClientApp()
 {
 }
 
-void DhtClientApp::Init()
+void DhtClientApp::Init(int64_t maxOpPerTicket)
 {
 	sgx_spid_t spid;
 
@@ -56,9 +56,9 @@ void DhtClientApp::Init()
 	int enclaveRet = true;
 
 #ifdef DECENT_DHT_NAIVE_RA_VER
-	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, m_ias.get(), &spid, GetEnclaveId());
+	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, m_ias.get(), &spid, GetEnclaveId(), maxOpPerTicket);
 #else
-	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, nullptr, &spid, GetEnclaveId());
+	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, nullptr, &spid, GetEnclaveId(), maxOpPerTicket);
 #endif // DECENT_DHT_NAIVE_RA_VER
 
 	if (!enclaveRet)

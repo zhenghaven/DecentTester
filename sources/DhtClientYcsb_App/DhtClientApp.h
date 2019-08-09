@@ -31,7 +31,7 @@ namespace Decent
 
 			virtual ~DhtClientApp();
 
-			void Init();
+			void Init(int64_t maxOpPerTicket);
 
 			virtual void Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string& key, const std::string& val);
 

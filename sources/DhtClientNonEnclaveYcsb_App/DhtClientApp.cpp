@@ -44,7 +44,7 @@ DhtClientApp::DhtClientApp() :
 			std::make_unique<MbedTlsObj::ECKeyPair>(MbedTlsObj::ECKeyPair::FromPemString(gsk_testPrvKeyPem))
 			)),
 	m_serverWl(std::make_unique<Ra::WhiteList::DecentServer>()),
-	m_connectionMgr(std::make_unique<ConnectionManager>(50, 10)),
+	m_connectionMgr(std::make_unique<ConnectionManager>(50, -1)),
 	m_states(std::make_unique<DhtClient::States>(*m_certContainer, *m_keyContainer, *m_serverWl, &GetLoadedWhiteListImpl, *m_connectionMgr))
 {
 }
@@ -53,10 +53,11 @@ DhtClientApp::~DhtClientApp()
 {
 }
 
-void DhtClientApp::Init(std::shared_ptr<ConnectionPool> cntPool, const Decent::Ra::WhiteList::StaticList& loadedWhiteList)
+void DhtClientApp::Init(std::shared_ptr<ConnectionPool> cntPool, const Decent::Ra::WhiteList::StaticList& loadedWhiteList, int64_t maxOpPerTicket)
 {
 	Decent::Ra::WhiteList::LoadedList tmpLoadedWhiteList(loadedWhiteList.GetMap());
 	GetLoadedWhiteListImpl(&tmpLoadedWhiteList);
+	m_connectionMgr->InitOpCountMax(maxOpPerTicket);
 
 	int enclaveRet = ecall_dht_client_init(cntPool.get(), m_states.get());
 

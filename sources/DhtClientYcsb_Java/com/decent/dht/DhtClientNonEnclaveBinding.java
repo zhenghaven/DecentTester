@@ -12,7 +12,7 @@ public class DhtClientNonEnclaveBinding
 		this.cPtr = 0;
 	}
 
-	public native void init() throws DhtClientBindingException;
+	public native void init(long maxOpPerTicket) throws DhtClientBindingException;
 
 	public native void cleanup() throws DhtClientBindingException;
 

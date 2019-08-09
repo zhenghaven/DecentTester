@@ -30,7 +30,7 @@ namespace Decent
 
 			virtual ~DhtClientApp();
 
-			void Init(std::shared_ptr<ConnectionPool> cntPool, const Ra::WhiteList::StaticList& loadedWhiteList);
+			void Init(std::shared_ptr<ConnectionPool> cntPool, const Ra::WhiteList::StaticList& loadedWhiteList, int64_t maxOpPerTicket);
 
 			virtual void Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string& key, const std::string& val);
 

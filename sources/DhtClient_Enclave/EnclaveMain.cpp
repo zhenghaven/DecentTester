@@ -88,7 +88,7 @@ namespace
 	}
 }
 
-extern "C" int ecall_dht_client_init(void* ias_cntor, const sgx_spid_t* spid, uint64_t enclave_Id)
+extern "C" int ecall_dht_client_init(void* ias_cntor, const sgx_spid_t* spid, uint64_t enclave_Id, int64_t max_op_per_ticket)
 {
 	try
 	{
@@ -98,6 +98,7 @@ extern "C" int ecall_dht_client_init(void* ias_cntor, const sgx_spid_t* spid, ui
 		gs_state.SetIasConnector(ias_cntor);
 		gs_state.SetEnclaveId(enclave_Id);
 		gs_state.SetSpid(std::make_shared<sgx_spid_t>(*spid));
+		gs_state.GetConnectionMgr().InitOpCountMax(max_op_per_ticket);
 	}
 	catch (const std::exception&)
 	{

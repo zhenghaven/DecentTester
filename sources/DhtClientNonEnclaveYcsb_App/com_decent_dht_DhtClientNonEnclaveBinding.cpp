@@ -74,11 +74,11 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved)
 	env->DeleteGlobalRef(gsk_bindingClass);
 }
 
-JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientNonEnclaveBinding_init(JNIEnv * env, jobject obj)
+JNIEXPORT void JNICALL Java_com_decent_dht_DhtClientNonEnclaveBinding_init(JNIEnv * env, jobject obj, jlong maxOpPerTicket)
 {
 	try
 	{
-		DhtClientAppPkg* decentappPkg = GetNewDhtClientAppPkg(100);
+		DhtClientAppPkg* decentappPkg = GetNewDhtClientAppPkg(100, static_cast<int64_t>(maxOpPerTicket));
 		env->SetLongField(obj, gsk_bindingClassCPtr, Ptr2Long(decentappPkg));
 	}
 	catch (const std::exception& e)

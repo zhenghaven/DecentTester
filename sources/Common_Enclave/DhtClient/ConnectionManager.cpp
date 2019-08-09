@@ -31,7 +31,7 @@ namespace
 #endif // DECENT_DHT_NAIVE_RA_VER
 }
 
-ConnectionManager::ConnectionManager(size_t cacheSize, int8_t opCountMax) :
+ConnectionManager::ConnectionManager(size_t cacheSize, int64_t opCountMax) :
 	m_sessionCache(cacheSize),
 	m_opCountMax(opCountMax),
 	m_opCountMutex(),
@@ -41,6 +41,11 @@ ConnectionManager::ConnectionManager(size_t cacheSize, int8_t opCountMax) :
 
 ConnectionManager::~ConnectionManager()
 {
+}
+
+void ConnectionManager::InitOpCountMax(int64_t opCountMax)
+{
+	m_opCountMax = opCountMax;
 }
 
 CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtClient::States & state)
