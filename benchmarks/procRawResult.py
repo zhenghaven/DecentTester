@@ -43,7 +43,9 @@ data.sort_values(by=['latency(us)'], inplace=True)
 data = data.reset_index(drop=True)
 length = data.shape[0]
 latency95 = data.iat[int(length*0.95//1),2] 
-
+print('')
+print('Total OPs:'+ str(length))
 print('Throughput:'+ str(throughtput))
 print('95Percentil_latency:' + str(latency95))
+print('')
 os.remove(outputfilepath)
