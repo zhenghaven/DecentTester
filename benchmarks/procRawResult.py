@@ -52,6 +52,10 @@ def ProcOneResultSet(inputfilepath, warmUpTime, percentile):
 	#dataF.to_csv(immedfilepath)
 
 	totalOps = dataF.shape[0]
+
+	if totalOps == 0:
+		return [0, 0, 0, 0]
+
 	timeElapsedMs = dataF.iat[totalOps - 1, 1] - dataF.iat[0, 1] #In millisecond
 	timeElapsedS = timeElapsedMs / 1000 # In sec
 	throughtput = totalOps / timeElapsedS
