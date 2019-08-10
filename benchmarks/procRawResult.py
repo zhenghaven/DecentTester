@@ -1,10 +1,18 @@
 import os
 import sys
+import openpyxl
 import argparse
+import sqlalchemy
 import progressbar
 import pandas as pd
 
 COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us']
+
+COLUMN_TYPES = {'Attempt': 'int32', 'Num_of_Node': 'int32', 'Num_of_Thread': 'int32', 'Ops_per_Session': 'int32'}
+
+EXCEL_POSTFIX = '.xlsx'
+
+DEFAULT_TABLE_NAME = 'FullTestResult'
 
 def PreProcCsv(oriFilePath, resFilePath):
 
@@ -79,6 +87,65 @@ def SummaryOneResultSet(filepath, warmUpTime, percentile):
 
 	return filenameRes + dataRes
 
+def ConstructIndexSheet(sqlList):
+
+	rows = [['Sheet_01', 'Full summary']]
+	i = 2
+	for sqlQuery in sqlList:
+		rows.append([('Sheet_' + '{0:02d}'.format(i)), sqlQuery])
+
+	return pd.DataFrame(data=rows, columns=['Sheet', 'Content'])
+
+def ConstructExcelSheets(summaryDataF, sqlList):
+
+	dataFs = [ConstructIndexSheet(sqlList), summaryDataF]
+
+	if sqlList != None and len(sqlList) > 0:
+
+		#Create an in-memory SQLite database.
+		engine = sqlalchemy.create_engine('sqlite://', echo=False)
+
+		summaryDataF.to_sql(DEFAULT_TABLE_NAME, con=engine, if_exists='replace')
+
+		print('INFO:', 'Executing SQL queries...')
+
+		proBar = progressbar.ProgressBar()
+
+		for sqlQuery in proBar(sqlList):
+			sqlRes = pd.read_sql_query(sqlQuery, con=engine)
+			dataFs.append(sqlRes)
+
+	return dataFs
+
+def WriteExcel(outPath, dataFs):
+
+	print('INFO:', 'Writting results into', outPath, '...')
+
+	proBar = progressbar.ProgressBar()
+
+	with pd.ExcelWriter(outPath) as writer:
+		i = 0
+		for dataF in proBar(dataFs):
+			if i == 0:
+				dataF.to_excel(writer, sheet_name='Index')
+			else:
+				dataF.to_excel(writer, sheet_name=('Sheet_' + '{0:02d}'.format(i)))
+
+			i += 1
+
+def ReadSqlQueries(sqlPath):
+
+	if sqlPath == None:
+
+		return []
+
+	else:
+
+		sqlFile = open(sqlPath, 'r')
+		sqlQueries = sqlFile.readlines()
+		sqlFile.close()
+		return sqlQueries
+
 def main():
 
 	print()
@@ -88,6 +155,7 @@ def main():
 	parser.add_argument('--warmUpTime', required=True, type=int)
 	parser.add_argument('--percentile', required=True, type=int)
 	parser.add_argument('--out', required=True)
+	parser.add_argument('--sql', required=False)
 
 	args = parser.parse_args()
 
@@ -98,15 +166,29 @@ def main():
 		print('FATAL_ERR:', 'The input directory:', dirPath, 'does not exist, or it is a file!')
 		exit(-1)
 
-	outPath = os.path.abspath(args.out)
+	outPath = os.path.abspath(args.out + EXCEL_POSTFIX)
 
 	if os.path.exists(outPath):
 		print('FATAL_ERR:', 'The output file path:', outPath, 'already exist!')
 		exit(-1)
 
+	if args.sql != None:
+
+		sqlPath = os.path.abspath(args.sql)
+
+		if not os.path.isfile(sqlPath):
+			print('FATAL_ERR:', 'The SQL file,', outPath, 'does not exist!')
+			exit(-1)
+
+	else:
+
+		sqlPath = None
+
+	sqlQueries = ReadSqlQueries(sqlPath)
+
 	rows = []
 
-	print('INFO:', 'Processing...')
+	print('INFO:', 'Processing raw data...')
 
 	proBar = progressbar.ProgressBar()
 
@@ -127,9 +209,11 @@ def main():
 
 	summaryDataF = pd.DataFrame(data=rows, columns=COLUMN_NAMES)
 
-	print('INFO:', 'Writting results into', outPath, '...')
+	summaryDataF = summaryDataF.astype(COLUMN_TYPES)
 
-	summaryDataF.to_csv(outPath)
+	dataFs = ConstructExcelSheets(summaryDataF, sqlQueries)
+
+	WriteExcel(outPath, dataFs)
 
 	print()
 
