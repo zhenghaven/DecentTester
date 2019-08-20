@@ -99,15 +99,18 @@ def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCo
 
 	print('INFO:', 'Loading the database...')
 
+	outDir = os.path.join(outDir, 'load')
+	CreateDirs(outDir)
+
 	#output report path
-	outRepPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_load.txt'
+	outRepPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.txt'
 	outRepPath = os.path.join(outDir, outRepPath)
 
 	if os.path.exists(outRepPath):
 		raise FileExistsError('The output report file, with path ' + outRepPath + ', already exist!')
 
 	#output raw data path
-	outRawPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_load.csv'
+	outRawPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.csv'
 	outRawPath = os.path.join(outDir, outRawPath)
 
 	if os.path.exists(outRawPath):
@@ -269,13 +272,17 @@ def main():
 	parser.add_argument('--maxOp', type=int, required=True)
 	parser.add_argument('--maxTime', type=int, required=True)
 	parser.add_argument('--attemptN', type=int, required=True)
-	parser.add_argument('--nodeNum', type=int, required=False)
-	parser.add_argument('--maxNode', type=int, required=False)
+	parser.add_argument('--minNode', type=int, required=False)
+	parser.add_argument('--maxNode', type=int, required=True)
 
 	args = parser.parse_args()
 
-	if (args.nodeNum == None and args.maxNode == None) or (args.nodeNum != None and args.maxNode != None):
-		print('FATAL_ERR:', 'Only one argument of nodeNum and maxNode should be set!')
+	if (args.minNode != None and args.maxNode != None) and (args.minNode > args.maxNode):
+		print('FATAL_ERR:', 'minNode should not be larger than maxNode!')
+		exit(-1)
+
+	if (args.minNode != None and args.minNode < 1):
+		print('FATAL_ERR:', 'minNode should not be less than 1!')
 		exit(-1)
 
 	#Setup necessary paths:
@@ -294,16 +301,11 @@ def main():
 
 	conn = GetServerConnection()
 
-	if args.nodeNum == None:
+	minNodeNum = 1 if args.minNode == None else args.minNode
+	maxNodeNum = args.maxNode
 
-		#Test with all num of node setups
-		for i in range(1, args.maxNode + 1):
-			RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, i, args.maxOp, args.maxTime, args.attemptN)
-
-	else:
-
-		#Test with only one num of node setup
-		RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, args.nodeNum, args.maxOp, args.maxTime, args.attemptN)
+	for i in range(minNodeNum, maxNodeNum + 1):
+		RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, i, args.maxOp, args.maxTime, args.attemptN)
 
 	print('INFO:', 'Tests are finished!')
 	SendClientFinished(conn)
