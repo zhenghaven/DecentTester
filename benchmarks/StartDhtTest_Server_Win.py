@@ -58,7 +58,7 @@ def WaitFor(sec):
 	sys.stdout.flush()
 	leftSec = sec
 	while leftSec > 0:
-		time.sleep(1)
+		time.sleep(leftSec if leftSec < 1 else 1)
 		leftSec = leftSec - 1
 		sys.stdout.write('.')
 		sys.stdout.flush()

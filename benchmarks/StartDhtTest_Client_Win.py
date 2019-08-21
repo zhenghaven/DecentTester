@@ -3,10 +3,13 @@ import sys
 import time
 import json
 import socket
+import psutil
 import datetime
 import argparse
 import subprocess
 import SocketTools as st
+
+DEFAULT_PRIORITY = psutil.REALTIME_PRIORITY_CLASS
 
 CLIENT_BINDING_NAME = 'decentdht'
 
@@ -53,7 +56,7 @@ def WaitFor(sec):
 	sys.stdout.flush()
 	leftSec = sec
 	while leftSec > 0:
-		time.sleep(1)
+		time.sleep(leftSec if leftSec < 1 else 1)
 		leftSec = leftSec - 1
 		sys.stdout.write('.')
 		sys.stdout.flush()
@@ -112,10 +115,25 @@ def CreateDirs(dirPath):
 		print('INFO:', 'Creating directories with path:', dirPath, '...')
 		os.makedirs(dirPath)
 
+def FindProcsByName(name):
+
+	ls = []
+
+	for p in psutil.process_iter(attrs=['name']):
+		if p.info['name'].startswith(name):
+			ls.append(p)
+	return ls
+
 def ExecuteYcsbTestCommand(command):
 
 	#print('INFO:', 'Executed command:', ' '.join(command))
 	procObj = subprocess.Popen(command)# , creationflags=subprocess.CREATE_NEW_CONSOLE
+
+	#Sets priority of the JVM:
+	WaitFor(0.2)
+	for p in FindProcsByName('java'):
+		p.nice(DEFAULT_PRIORITY)
+
 	print('INFO:', 'Executed command:', ' '.join(procObj.args))
 	print('INFO:', 'Waiting for process to be done...')
 	procObj.wait()
