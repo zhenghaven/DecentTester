@@ -49,11 +49,16 @@ def SetupDirPath():
 
 def WaitFor(sec):
 
+	sys.stdout.write('INFO: Execute next command in ' + str(sec) + ' second(s).')
+	sys.stdout.flush()
 	leftSec = sec
 	while leftSec > 0:
-		print('INFO:', 'Execute next command in ' + str(leftSec) + ' second(s).')
 		time.sleep(1)
 		leftSec = leftSec - 1
+		sys.stdout.write('.')
+		sys.stdout.flush()
+
+	print()
 
 def GetStrFromFile(filename):
 
@@ -120,8 +125,6 @@ def ExecuteYcsbTestCommand(command):
 
 	print('INFO:', 'Done!')
 
-	WaitFor(5)
-
 def GetYcsbWorkloadPath(filename):
 
 	return os.path.join(GetYcsbHomePath(), 'workloads', filename)
@@ -165,6 +168,8 @@ def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNod
 
 	WriteStrToFile(outSvrStatPath, st.SocketRecvPack(conn))
 
+	WaitFor(5)
+
 def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket):
 
 	print('INFO:', 'Running the test...')
@@ -205,6 +210,8 @@ def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, ma
 	st.SocketSendPack(conn, 'End')
 
 	WriteStrToFile(outSvrStatPath, st.SocketRecvPack(conn))
+
+	WaitFor(5)
 
 def RunOneAttempt(conn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
 

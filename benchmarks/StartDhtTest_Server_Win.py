@@ -54,11 +54,16 @@ def RecvNumOfNode(conn):
 
 def WaitFor(sec):
 
+	sys.stdout.write('INFO: Execute next command in ' + str(sec) + ' second(s).')
+	sys.stdout.flush()
 	leftSec = sec
 	while leftSec > 0:
-		print('INFO:', 'Execute next command in ' + str(leftSec) + ' second(s).')
 		time.sleep(1)
 		leftSec = leftSec - 1
+		sys.stdout.write('.')
+		sys.stdout.flush()
+
+	print()
 
 def RunTestProgram(numOfNode):
 
