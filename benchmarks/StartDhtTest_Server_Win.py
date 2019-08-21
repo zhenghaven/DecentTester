@@ -1,19 +1,21 @@
 import os
 import sys
-import subprocess
-import argparse
 import time
 import socket
+import psutil
+import argparse
+import subprocess
+import SocketTools as st
+import procConfigureTools as pct
 
-AFINITY_LIST = ['40', '80', '08', '10', '20', '02'] #, '04', '01'
+AFINITY_LIST = [[3], [4], [5], [7], [6], [1]] #, [0], [2]
+DEFAULT_PRIORITY = psutil.REALTIME_PRIORITY_CLASS
 
 DHT_PORT_START = 57756
 
-PROG_CFG_NAME = 'ProcConfigurer'
-
 DHT_PROG_NAME = 'DecentDht_App'
 
-TEST_SERVER_ADDR = '127.0.0.1'
+TEST_SERVER_ADDR = ''
 TEST_SERVER_PORT = 57725
 
 def SetupTestServer():
@@ -40,26 +42,15 @@ def AcceptTestClient(svr):
 
 def RecvNumOfNode(conn):
 
-	data = conn.recv(512)
-	numOfNode = int(data)
+	numOfNode = st.SocketRecv_uint64(conn)
 
-	if numOfNode > len(AFINITY_LIST):
-		conn.send(b'N')
+	if numOfNode > len(AFINITY_LIST) or numOfNode < 1:
+		st.SocketSendPack(conn, 'Err')
 		raise RuntimeError('The total number of node given (i.e. ' + numOfNode + ') is out of range!')
 	else:
-		conn.send(b'O')
+		st.SocketSendPack(conn, 'OK')
 
 	return numOfNode
-
-def SendServerReady(conn):
-
-	conn.send(b'R')
-
-def WaitForClientFinish(conn):
-
-	data = conn.recv(512)
-	if data != b'F':
-		raise RuntimeError('client error during test.')
 
 def WaitFor(sec):
 
@@ -72,7 +63,6 @@ def WaitFor(sec):
 def RunTestProgram(numOfNode):
 
 	cWorkDir = os.getcwd()
-	ProcConfigurerPath = os.path.join(cWorkDir, PROG_CFG_NAME)
 	dhtAppPath = os.path.join(cWorkDir, DHT_PROG_NAME)
 
 	currPortI = DHT_PORT_START + numOfNode - 1
@@ -94,11 +84,6 @@ def RunTestProgram(numOfNode):
 		if procObj.poll() != None:
 			exit(procObj.poll())
 
-		print('INFO:', 'Setting affinity and priority...')
-		setProcRes = subprocess.run([ProcConfigurerPath, '-i', str(procObj.pid), '-a', AFINITY_LIST[i], '-p', '5'])
-		if setProcRes.returncode != 0:
-			raise RuntimeError('Failed to set affinity and priority, with command ' + ' '.join(setProcRes.args))
-
 		prevPortI = currPortI
 		currPortI = currPortI - 1
 
@@ -108,26 +93,80 @@ def RunTestProgram(numOfNode):
 
 	return procObjs
 
+def GetPidListFromProcObjs(procObjs):
+
+	pidList = []
+
+	for procObj in procObjs:
+		pidList.append(procObj.pid)
+
+	return pidList
+
 def KillTestProgram(procObjs):
+
+	if procObjs == None:
+		return
 
 	for procObj in procObjs:
 		procObj.kill()
 
-def ListenToClient(conn):
+def GetClientStartEndRound(conn, pList):
 
+	clientSignal = st.SocketRecvPack(conn)
+	if clientSignal != 'Start':
+		return False
+
+	sysStatRecorder = pct.SysStatusRecorderThread(pList, 0.1) # Start
+	sysStatRecorder.start()
+
+	clientSignal = st.SocketRecvPack(conn)
+	#Any signal will be treated as end.
+	rec = sysStatRecorder.StopAndGetResult() # End
+
+	recCsvStr = pct.ConvertRecord2CsvStr(rec, pList)
+	#Send CSV string
+	st.SocketSendPack(conn, recCsvStr)
+
+	return True
+
+def RunOneTestCase(conn):
+
+	#Recv num of server nodes to spawn
 	numOfNode = RecvNumOfNode(conn)
 
-	#Check if the client wants to finish the test
-	while numOfNode > 0:
+	procObjs = None
 
+	try:
+		#Run server nodes:
+		print('INFO:', 'Spawning', numOfNode, 'nodes...')
 		procObjs = RunTestProgram(numOfNode)
-		SendServerReady(conn)
-		print('INFO:', 'Server is ready')
-		WaitForClientFinish(conn)
-		print('INFO:', 'Client has finished the current test.')
+
+		pidList = GetPidListFromProcObjs(procObjs)
+
+		#Configure CPU affinity & priority etc...
+		pList = pct.ConfigureProc(pidList, AFINITY_LIST, DEFAULT_PRIORITY)
+
+		#Now, server is ready
+		st.SocketSendPack(conn, 'R')
+		print('INFO:', 'Server is ready.')
+
+		isClientFinished = GetClientStartEndRound(conn, pList)
+
+		while isClientFinished:
+			isClientFinished = GetClientStartEndRound(conn, pList)
+
+		print('INFO:', 'Client has finished the current test case.')
+
+	finally:
 		KillTestProgram(procObjs)
-		print('INFO:', 'Waiting for client\'s next instruction...')
-		numOfNode = RecvNumOfNode(conn)
+
+def ListenToClient(conn):
+
+	clientSignal = st.SocketRecvPack(conn)
+
+	while clientSignal == 'Test':
+		RunOneTestCase(conn)
+		clientSignal = st.SocketRecvPack(conn)
 
 def main():
 

@@ -6,6 +6,7 @@ import socket
 import datetime
 import argparse
 import subprocess
+import SocketTools as st
 
 CLIENT_BINDING_NAME = 'decentdht'
 
@@ -54,6 +55,36 @@ def WaitFor(sec):
 		time.sleep(1)
 		leftSec = leftSec - 1
 
+def GetStrFromFile(filename):
+
+	file = open(filename, 'r')
+	res = file.read()
+	file.close()
+
+	return res
+
+def GetJsonFromFile(filename):
+
+	return json.loads(GetStrFromFile(filename))
+
+def WriteStrToFile(filename, outStr):
+
+	file = open(filename, 'w')
+	file.write(outStr)
+	file.close()
+
+def WriteJsonToFile(filename, jsonObj):
+
+	WriteStrToFile(filename, json.dumps(jsonObj, indent='\t'))
+
+def UpdateClientConfig(numOfNode):
+
+	jsonObj = GetJsonFromFile(GetConfigFilePath())
+
+	jsonObj['Enclaves']['DecentDHT']['Port'] = DHT_SERVER_PORT_BEGIN + (numOfNode - 1)
+
+	WriteJsonToFile(GetConfigFilePath(), jsonObj)
+
 def SetJavaSysProperty(maxOpPerTicket):
 
 	os.environ['JAVA_OPTS'] = '-DDecent.maxOpPerTicket="' + str(maxOpPerTicket) + '"'
@@ -95,26 +126,24 @@ def GetYcsbWorkloadPath(filename):
 
 	return os.path.join(GetYcsbHomePath(), 'workloads', filename)
 
-def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket, attemptNum):
+def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket):
 
 	print('INFO:', 'Loading the database...')
 
-	outDir = os.path.join(outDir, 'load')
-	CreateDirs(outDir)
-
 	#output report path
-	outRepPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.txt'
-	outRepPath = os.path.join(outDir, outRepPath)
-
+	outRepPath = outPathBase + '.txt'
 	if os.path.exists(outRepPath):
 		raise FileExistsError('The output report file, with path ' + outRepPath + ', already exist!')
 
 	#output raw data path
-	outRawPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.csv'
-	outRawPath = os.path.join(outDir, outRawPath)
-
+	outRawPath = outPathBase + '.ycsb.csv'
 	if os.path.exists(outRawPath):
 		raise FileExistsError('The output report file, with path ' + outRawPath + ', already exist!')
+
+	#output server sys status data path
+	outSvrStatPath = outPathBase + '.SvrStat.csv'
+	if os.path.exists(outSvrStatPath):
+		raise FileExistsError('The output report file, with path ' + outSvrStatPath + ', already exist!')
 
 	#Construct command
 	options = []
@@ -129,25 +158,31 @@ def LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, threadCo
 
 	print('INFO:', 'Loading database with maxOpPerTicket =', maxOpPerTicket)
 	SetJavaSysProperty(maxOpPerTicket)
-	ExecuteYcsbTestCommand(command)
 
-def RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, attemptNum):
+	st.SocketSendPack(conn, 'Start')
+	ExecuteYcsbTestCommand(command)
+	st.SocketSendPack(conn, 'End')
+
+	WriteStrToFile(outSvrStatPath, st.SocketRecvPack(conn))
+
+def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket):
 
 	print('INFO:', 'Running the test...')
 
 	#output report path
-	outRepPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.txt'
-	outRepPath = os.path.join(outDir, outRepPath)
-
+	outRepPath = outPathBase + '.txt'
 	if os.path.exists(outRepPath):
 		raise FileExistsError('The output report file, with path ' + outRepPath + ', already exist!')
 
 	#output raw data path
-	outRawPath = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) + '.csv'
-	outRawPath = os.path.join(outDir, outRawPath)
-
+	outRawPath = outPathBase + '.ycsb.csv'
 	if os.path.exists(outRawPath):
 		raise FileExistsError('The output report file, with path ' + outRawPath + ', already exist!')
+
+	#output server sys status data path
+	outSvrStatPath = outPathBase + '.SvrStat.csv'
+	if os.path.exists(outSvrStatPath):
+		raise FileExistsError('The output report file, with path ' + outSvrStatPath + ', already exist!')
 
 	#Construct command
 	options = []
@@ -164,66 +199,38 @@ def RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTim
 
 	print('INFO:', 'Running test with maxOpPerTicket =', maxOpPerTicket)
 	SetJavaSysProperty(maxOpPerTicket)
+
+	st.SocketSendPack(conn, 'Start')
 	ExecuteYcsbTestCommand(command)
+	st.SocketSendPack(conn, 'End')
 
-def RunOneAttempt(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
+	WriteStrToFile(outSvrStatPath, st.SocketRecvPack(conn))
 
-	LoadDatabase(ycsbPath, outDir, workload, dist, recCount, numOfNode, THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1], MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1], attemptNum)
+def RunOneAttempt(conn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
+
+
+	CreateDirs(os.path.join(outDir, 'load'))
+	loadThreadCount = THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1]
+	loadMaxOpPerTicket = MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1]
+
+	outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket)
+	loadOutPathBase = os.path.join(outDir, 'load', outPathBase)
+	LoadDatabase(conn, ycsbPath, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
 
 	for threadCount in THREAD_COUNT_LIST:
 		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
-			RunTest(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, attemptNum)
+			outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket)
+			outPathBase = os.path.join(outDir, outPathBase)
+			RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket)
+
+	st.SocketSendPack(conn, 'Finished')
 
 def SendNumOfNode(conn, numOfNode):
 
-	conn.sendall(str(numOfNode).encode())
-	data = conn.recv(512)
-	if data != b'O':
+	st.SocketSend_uint64(conn, numOfNode)
+
+	if st.SocketRecvPack(conn) != 'OK':
 		raise RuntimeError('Server doesn\'t accept the numOfNode=' + numOfNode + ' !')
-
-def RecvServerReady(conn):
-
-	data = conn.recv(512)
-	if data != b'R':
-		raise RuntimeError('Server error during setup process.')
-
-def SendServerReady(conn):
-
-	conn.send(b'F')
-
-def SendClientFinished(conn):
-
-	SendNumOfNode(conn, 0)
-
-def GetStrFromFile(filename):
-
-	file = open(filename, 'r')
-	res = file.read()
-	file.close()
-
-	return res
-
-def GetJsonFromFile(filename):
-
-	return json.loads(GetStrFromFile(filename))
-
-def WriteStrToFile(filename, outStr):
-
-	file = open(filename, 'w')
-	file.write(outStr)
-	file.close()
-
-def WriteJsonToFile(filename, jsonObj):
-
-	WriteStrToFile(filename, json.dumps(jsonObj, indent='\t'))
-
-def UpdateClientConfig(numOfNode):
-
-	jsonObj = GetJsonFromFile(GetConfigFilePath())
-
-	jsonObj['Enclaves']['DecentDHT']['Port'] = DHT_SERVER_PORT_BEGIN + (numOfNode - 1)
-
-	WriteJsonToFile(GetConfigFilePath(), jsonObj)
 
 def RunOneTypeNodeSetup(serverConn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptCount):
 
@@ -231,21 +238,23 @@ def RunOneTypeNodeSetup(serverConn, ycsbPath, outDir, workload, dist, recCount, 
 
 	for i in range(1, attemptCount + 1):
 
+		#Tell server we have test to perform
+		st.SocketSendPack(serverConn, 'Test')
+
 		#Tell server how many node we need
 		print('INFO:', 'Telling server how many node we need...')
 		SendNumOfNode(serverConn, numOfNode)
 
 		#Wait for server to complete the setup process
 		print('INFO:', 'Waiting for server to complete the setup process...')
-		RecvServerReady(serverConn)
+		clientSignal = st.SocketRecvPack(serverConn)
+		if clientSignal != 'R':
+			raise RuntimeError('Server error during setup process.')
 
 		#Begin testing
 		print('INFO:', 'Begin testing...')
-		RunOneAttempt(ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, i)
-
-		#Tell server we are done, so the server node can be destroyed
-		print('INFO:', 'Tell server we are done, so the server node can be destroyed...')
-		SendServerReady(serverConn)
+		RunOneAttempt(serverConn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, i)
+		print('INFO:', 'Finished one attempt.')
 
 def GetServerConnection():
 
@@ -304,11 +313,15 @@ def main():
 	minNodeNum = 1 if args.minNode == None else args.minNode
 	maxNodeNum = args.maxNode
 
-	for i in range(minNodeNum, maxNodeNum + 1):
-		RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, i, args.maxOp, args.maxTime, args.attemptN)
+	try:
+		for i in range(minNodeNum, maxNodeNum + 1):
+			RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, i, args.maxOp, args.maxTime, args.attemptN)
 
-	print('INFO:', 'Tests are finished!')
-	SendClientFinished(conn)
+		#Tell server we are done
+		st.SocketSendPack(conn, 'Done')
+	finally:
+		conn.shutdown(socket.SHUT_RDWR)
+		conn.close()
 
 if __name__ == '__main__':
 	sys.exit(main())
