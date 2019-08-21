@@ -1,6 +1,11 @@
 #include "ConnectionManager.h"
 
+#include <random>
+#include <algorithm>
+#include <mutex>
+
 #include <DecentApi/Common/make_unique.h>
+#include <DecentApi/Common/MbedTls/Drbg.h>
 #include <DecentApi/Common/Net/TlsCommLayer.h>
 #include <DecentApi/Common/Net/ConnectionBase.h>
 #include <DecentApi/Common/Ra/TlsConfigWithName.h>
@@ -29,13 +34,28 @@ namespace
 		return true;
 	};
 #endif // DECENT_DHT_NAIVE_RA_VER
+
+	static uint64_t GenRandomInitCount(uint64_t max)
+	{
+		static MbedTlsObj::DrbgRandGenerator<uint32_t> gen; //uint32_t generator will cause warning.
+		static std::uniform_int_distribution<uint64_t> dist(0, max);
+		static std::mutex mutex;
+
+		uint64_t res = 0;
+		{
+			std::unique_lock<std::mutex> lock(mutex);
+			res = dist(gen);
+		}
+
+		return res;
+	}
 }
 
 ConnectionManager::ConnectionManager(size_t cacheSize, int64_t opCountMax) :
 	m_sessionCache(cacheSize),
 	m_opCountMax(opCountMax),
 	m_opCountMutex(),
-	m_opCount(0)
+	m_opCount(opCountMax > 0 ? GenRandomInitCount(static_cast<uint64_t>(opCountMax)) : 0)
 {
 }
 
@@ -46,6 +66,7 @@ ConnectionManager::~ConnectionManager()
 void ConnectionManager::InitOpCountMax(int64_t opCountMax)
 {
 	m_opCountMax = opCountMax;
+	m_opCount = opCountMax > 0 ? GenRandomInitCount(static_cast<uint64_t>(opCountMax)) : 0;
 }
 
 CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtClient::States & state)
@@ -95,10 +116,10 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtCl
 
 	if (m_opCountMax > 0)
 	{
-		m_opCount++;
-
 		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
-		if (m_opCount >= m_opCountMax)
+
+		m_opCount++;
+		if (m_opCount >= static_cast<uint64_t>(m_opCountMax))
 		{
 			m_sessionCache.Clear();
 			m_opCount = 0;
