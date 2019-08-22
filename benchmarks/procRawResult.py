@@ -2,11 +2,12 @@ import os
 import sys
 import openpyxl
 import argparse
+import threading
 import sqlalchemy
 import progressbar
 import pandas as pd
 
-COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us']
+COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us', 'Overall_Svr_CPU_perc', 'Svr_Node_Proc_CPU_perc']
 
 COLUMN_TYPES = {'Attempt': 'int32', 'Num_of_Node': 'int32', 'Num_of_Thread': 'int32', 'Ops_per_Session': 'int32'}
 
@@ -14,12 +15,15 @@ EXCEL_POSTFIX = '.xlsx'
 
 DEFAULT_TABLE_NAME = 'FullTestResult'
 
-def PreProcCsv(oriFilePath, resFilePath):
+COL_NAME_TIMESTAMP = 'timestamp_ms'
+COL_NAME_LATENCY = 'latency_us'
+
+def PreProcYcsbCsv(oriFilePath, resFilePath):
 
 	inputfile= open(oriFilePath, 'r')
 	outputfile = open(resFilePath, "w")
 
-	outputfile.write('Op,Timestamp_ms,Latency_us\n')
+	outputfile.write('op,' + COL_NAME_TIMESTAMP + ',' + COL_NAME_LATENCY + '\n')
 
 	lines = inputfile.readlines()
 	for line in lines:
@@ -29,63 +33,68 @@ def PreProcCsv(oriFilePath, resFilePath):
 	inputfile.close()
 	outputfile.close()
 
-def TrimOffWarmUpPhase(dataF, warmUpTime):
+def GetYcsbImCsvData(dirPath, resultId):
 
-	dataF.sort_values(by=['Timestamp_ms'], inplace=True)
-	dataF = dataF.reset_index(drop=True)
+	ycsbCsvPath = os.path.join(dirPath, resultId + '.ycsb.csv')
+	ycsbImCsvPath = os.path.join(dirPath, resultId + '.ycsbIm.csv')
+	PreProcYcsbCsv(ycsbCsvPath, ycsbImCsvPath)
 
-	length = dataF.shape[0]
-	starttime = dataF.iat[0,1]
-	trimindex = 0
+	dataF = pd.read_csv(ycsbImCsvPath)
 
-	for i in range(0, length):
-		if dataF.iat[i,1] - starttime >= warmUpTime * 1000:
-			trimindex = i
+	os.remove(ycsbImCsvPath)
+
+	return dataF
+
+def GetServerStatCsvData(dirPath, resultId):
+
+	serverCsvPath = os.path.join(dirPath, resultId + '.SvrStat.csv')
+	dataF = pd.read_csv(serverCsvPath)
+	return dataF
+
+def GetTimestampRange(dataF, tsColName):
+
+	dataF.sort_values(by=[tsColName], inplace=True)
+	dataF.reset_index(drop=True, inplace=True)
+
+	recCount = dataF.shape[0]
+
+	if recCount == 0:
+		return [0, 0]
+
+	starttime = dataF[tsColName][0]
+	endtime = dataF[tsColName][recCount - 1]
+
+	return [starttime, endtime]
+
+def TrimOffByTimeRange(dataF, tsColName, startTs, endTs):
+
+	dataF.sort_values(by=[tsColName], inplace=True)
+	dataF.reset_index(drop=True, inplace=True)
+
+	recCount = dataF.shape[0]
+
+	startIdx = 0
+	endIdx = recCount
+
+	for ts in dataF[tsColName]:
+		if ts < startTs:
+			startIdx = startIdx + 1
+		else:
 			break
 
-	return dataF[trimindex:].reset_index(drop=True)
+	for ts in reversed(dataF[tsColName]):
+		if ts > endTs:
+			endIdx = endIdx - 1
+		else:
+			break
 
-def ProcOneResultSet(inputfilepath, warmUpTime, percentile):
+	return dataF[startIdx:endIdx].reset_index(drop=True)
 
-	time_ignore = int()
+def ProcSvrCsv(dataF, tsColName, overallColName):
 
-	#Generate intermediate file:
-	immedfilepath = inputfilepath + '.tmp'
-	PreProcCsv(inputfilepath, immedfilepath)
+	avgs = dataF.drop([tsColName], axis=1).mean(axis=0)
 
-	dataF = pd.read_csv(immedfilepath)
-	os.remove(immedfilepath)
-
-	dataF = TrimOffWarmUpPhase(dataF, warmUpTime)
-	#dataF.to_csv(immedfilepath)
-
-	totalOps = dataF.shape[0]
-
-	if totalOps == 0:
-		return [0, 0, 0, 0]
-
-	timeElapsedMs = dataF.iat[totalOps - 1, 1] - dataF.iat[0, 1] #In millisecond
-	timeElapsedS = timeElapsedMs / 1000 # In sec
-	throughtput = totalOps / timeElapsedS
-	latencyPer = dataF.Latency_us.quantile(q=(percentile / 100.0), interpolation='higher')
-
-	return [totalOps, timeElapsedMs, throughtput, latencyPer]
-
-def ParseFileName(filepath):
-
-	root, ext = os.path.splitext(filepath)
-	filename = os.path.basename(root)
-
-	components = filename.split('_')
-
-	return components
-
-def SummaryOneResultSet(filepath, warmUpTime, percentile):
-
-	filenameRes = ParseFileName(filepath)
-	dataRes = ProcOneResultSet(filepath, warmUpTime, percentile)
-
-	return filenameRes + dataRes
+	return [avgs[overallColName], avgs.drop(overallColName).mean()]
 
 def ConstructIndexSheet(sqlList):
 
@@ -146,6 +155,87 @@ def ReadSqlQueries(sqlPath):
 		sqlFile.close()
 		return sqlQueries
 
+def GetResultIdList(dirPath):
+
+	idList = []
+
+	print('INFO:', 'Looking for result files...')
+	proBar = progressbar.ProgressBar()
+	for filename in proBar(os.listdir(dirPath)):
+
+		#looking for all txt files
+		if filename.endswith(".txt") and os.path.isfile(os.path.join(dirPath, filename)):
+			root, ext = os.path.splitext(filename)
+			idList.append(root)
+
+	print('INFO:', 'Found', len(idList), 'items.')
+
+	return idList
+
+class ResultParserThread(threading.Thread):
+
+	def __init__(self, dirPath, resId, warnupT, terminateT, percentile):
+		super(ResultParserThread, self).__init__()
+		self.dirPath = dirPath
+		self.resId = resId
+		self.warnupT = warnupT
+		self.terminateT = terminateT
+		self.percentile = percentile
+		self.idRes = []
+		self.ycsbRes = []
+		self.serverRes = []
+		self.error = None
+
+	def ProcessResultSet(self):
+
+		#Process result ID
+		self.idRes = self.resId.split('_')
+		self.idRes = ['999999999' if w == '-1' else w for w in self.idRes]
+
+		#Process YCSB CSV data
+		ycsbDataF = GetYcsbImCsvData(self.dirPath, self.resId)
+		ycsbTimeRange = GetTimestampRange(ycsbDataF, COL_NAME_TIMESTAMP)
+
+		startTs = ycsbTimeRange[0] + (self.warnupT * 1000)
+		endTs = ycsbTimeRange[1] - (self.terminateT * 1000)
+
+		ycsbDataF = TrimOffByTimeRange(ycsbDataF, COL_NAME_TIMESTAMP, startTs, endTs)
+		ycsbTimeRange = GetTimestampRange(ycsbDataF, COL_NAME_TIMESTAMP)
+
+		totalOps = ycsbDataF.shape[0]
+		timeElapsedMs = ycsbTimeRange[1] - ycsbTimeRange[0] #In millisecond
+		timeElapsedS = timeElapsedMs / 1000 # In sec
+		throughtput = totalOps / timeElapsedS
+		latencyPer = ycsbDataF[COL_NAME_LATENCY].quantile(q=(self.percentile / 100.0), interpolation='higher')
+
+		self.ycsbRes = [totalOps, timeElapsedMs, throughtput, latencyPer]
+
+		#Process server system status data
+		svrDataF = GetServerStatCsvData(self.dirPath, self.resId)
+		svrDataF = TrimOffByTimeRange(svrDataF, COL_NAME_TIMESTAMP, startTs, endTs)
+
+		self.serverRes = ProcSvrCsv(svrDataF, COL_NAME_TIMESTAMP, 'overall_percent')
+
+	def run(self):
+
+		try:
+
+			self.ProcessResultSet()
+
+		except Exception as e:
+			self.error = e
+
+	def JoinAndGetResult(self, timeout=None):
+
+		self.join(timeout)
+
+		if self.is_alive():
+			raise RuntimeError('Failed to stop the thread')
+		elif self.error != None:
+			raise self.error
+		else:
+			return self.idRes + self.ycsbRes + self.serverRes
+
 def main():
 
 	print()
@@ -188,24 +278,20 @@ def main():
 
 	rows = []
 
+	idList = GetResultIdList(dirPath)
 	print('INFO:', 'Processing raw data...')
 
+	parThreadList = []
+	for id in idList:
+		parThread = ResultParserThread(dirPath, id, args.warmUpTime, 1, args.percentile)
+		parThreadList.append(parThread)
+
+	#Collecting results
+	print('INFO:', 'Collecting results...')
 	proBar = progressbar.ProgressBar()
-
-	#iterate through files in the directory
-	for filename in proBar(os.listdir(dirPath)):
-
-		#looking for all csv files
-		if filename.endswith(".csv"):
-
-			filepath = os.path.join(dirPath, filename)
-
-			#Make sure it is a file (not a directory)
-			if os.path.isfile(filepath):
-
-				#print('.', end='', flush=True)
-				row = SummaryOneResultSet(filepath, args.warmUpTime, args.percentile)
-				rows.append(row)
+	for parThread in proBar(parThreadList):
+		parThread.start() # Due to memory size issue, we cannot do multithread yet.
+		rows.append(parThread.JoinAndGetResult())
 
 	summaryDataF = pd.DataFrame(data=rows, columns=COLUMN_NAMES)
 
