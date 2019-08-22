@@ -1,5 +1,7 @@
 import os
+import io
 import sys
+import psutil
 import openpyxl
 import argparse
 import threading
@@ -18,30 +20,25 @@ DEFAULT_TABLE_NAME = 'FullTestResult'
 COL_NAME_TIMESTAMP = 'timestamp_ms'
 COL_NAME_LATENCY = 'latency_us'
 
-def PreProcYcsbCsv(oriFilePath, resFilePath):
+def GetYcsbImCsvData(dirPath, resultId):
 
-	inputfile= open(oriFilePath, 'r')
-	outputfile = open(resFilePath, "w")
+	ycsbCsvPath = os.path.join(dirPath, resultId + '.ycsb.csv')
+
+	inputfile= open(ycsbCsvPath, 'r')
+	outputfile = io.StringIO()
 
 	outputfile.write('op,' + COL_NAME_TIMESTAMP + ',' + COL_NAME_LATENCY + '\n')
 
-	lines = inputfile.readlines()
-	for line in lines:
+	for line in inputfile.readlines():
 		if 'timestamp(ms)' not in line:
 			outputfile.write(line)
 
 	inputfile.close()
+
+	outputfile.seek(0)
+	dataF = pd.read_csv(outputfile)
+
 	outputfile.close()
-
-def GetYcsbImCsvData(dirPath, resultId):
-
-	ycsbCsvPath = os.path.join(dirPath, resultId + '.ycsb.csv')
-	ycsbImCsvPath = os.path.join(dirPath, resultId + '.ycsbIm.csv')
-	PreProcYcsbCsv(ycsbCsvPath, ycsbImCsvPath)
-
-	dataF = pd.read_csv(ycsbImCsvPath)
-
-	os.remove(ycsbImCsvPath)
 
 	return dataF
 
@@ -174,8 +171,9 @@ def GetResultIdList(dirPath):
 
 class ResultParserThread(threading.Thread):
 
-	def __init__(self, dirPath, resId, warnupT, terminateT, percentile):
+	def __init__(self, sema, dirPath, resId, warnupT, terminateT, percentile):
 		super(ResultParserThread, self).__init__()
+		self.sema = sema
 		self.dirPath = dirPath
 		self.resId = resId
 		self.warnupT = warnupT
@@ -220,7 +218,9 @@ class ResultParserThread(threading.Thread):
 
 		try:
 
+			self.sema.acquire()
 			self.ProcessResultSet()
+			self.sema.release()
 
 		except Exception as e:
 			self.error = e
@@ -281,16 +281,18 @@ def main():
 	idList = GetResultIdList(dirPath)
 	print('INFO:', 'Processing raw data...')
 
+	numOfThreads = (psutil.cpu_count() * 2) if psutil.cpu_count() != None else 1
+	sema = threading.Semaphore(value=numOfThreads)
 	parThreadList = []
 	for id in idList:
-		parThread = ResultParserThread(dirPath, id, args.warmUpTime, 1, args.percentile)
+		parThread = ResultParserThread(sema, dirPath, id, args.warmUpTime, 1, args.percentile)
+		parThread.start()
 		parThreadList.append(parThread)
 
 	#Collecting results
 	print('INFO:', 'Collecting results...')
 	proBar = progressbar.ProgressBar()
 	for parThread in proBar(parThreadList):
-		parThread.start() # Due to memory size issue, we cannot do multithread yet.
 		rows.append(parThread.JoinAndGetResult())
 
 	summaryDataF = pd.DataFrame(data=rows, columns=COLUMN_NAMES)
