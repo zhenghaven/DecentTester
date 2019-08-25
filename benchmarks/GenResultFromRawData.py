@@ -1,24 +1,29 @@
 import os
 import io
 import sys
-import psutil
-import openpyxl
 import argparse
 import threading
-import sqlalchemy
-import progressbar
+import progressbar as pbar
 import pandas as pd
+from python_utils.terminal import get_terminal_size
 
 COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us', 'Overall_Svr_CPU_perc', 'Svr_Node_Proc_CPU_perc']
 
 COLUMN_TYPES = {'Attempt': 'int32', 'Num_of_Node': 'int32', 'Num_of_Thread': 'int32', 'Ops_per_Session': 'int32'}
 
-EXCEL_POSTFIX = '.xlsx'
-
-DEFAULT_TABLE_NAME = 'FullTestResult'
+CSV_POSTFIX = '.csv'
 
 COL_NAME_TIMESTAMP = 'timestamp_ms'
 COL_NAME_LATENCY = 'latency_us'
+
+TERM_WIDTH = int(get_terminal_size()[0] * (2/3))
+
+PBAR_WIDGETS = [
+	pbar.Percentage(), ' (', pbar.SimpleProgress(), ') ',
+	pbar.Bar(marker='█', left=' |', right='| ', fill='▁'),
+	' ', pbar.Timer(),
+	' | ETA ', pbar.ETA()
+]
 
 def GetYcsbImCsvData(dirPath, resultId):
 
@@ -93,72 +98,12 @@ def ProcSvrCsv(dataF, tsColName, overallColName):
 
 	return [avgs[overallColName], avgs.drop(overallColName).mean()]
 
-def ConstructIndexSheet(sqlList):
-
-	rows = [['Sheet_01', 'Full summary']]
-	i = 2
-	for sqlQuery in sqlList:
-		rows.append([('Sheet_' + '{0:02d}'.format(i)), sqlQuery])
-
-	return pd.DataFrame(data=rows, columns=['Sheet', 'Content'])
-
-def ConstructExcelSheets(summaryDataF, sqlList):
-
-	dataFs = [ConstructIndexSheet(sqlList), summaryDataF]
-
-	if sqlList != None and len(sqlList) > 0:
-
-		#Create an in-memory SQLite database.
-		engine = sqlalchemy.create_engine('sqlite://', echo=False)
-
-		summaryDataF.to_sql(DEFAULT_TABLE_NAME, con=engine, if_exists='replace')
-
-		print('INFO:', 'Executing SQL queries...')
-
-		proBar = progressbar.ProgressBar()
-
-		for sqlQuery in proBar(sqlList):
-			sqlRes = pd.read_sql_query(sqlQuery, con=engine)
-			dataFs.append(sqlRes)
-
-	return dataFs
-
-def WriteExcel(outPath, dataFs):
-
-	print('INFO:', 'Writting results into', outPath, '...')
-
-	proBar = progressbar.ProgressBar()
-
-	with pd.ExcelWriter(outPath) as writer:
-		i = 0
-		for dataF in proBar(dataFs):
-			if i == 0:
-				dataF.to_excel(writer, sheet_name='Index')
-			else:
-				dataF.to_excel(writer, sheet_name=('Sheet_' + '{0:02d}'.format(i)))
-
-			i += 1
-
-def ReadSqlQueries(sqlPath):
-
-	if sqlPath == None:
-
-		return []
-
-	else:
-
-		sqlFile = open(sqlPath, 'r')
-		sqlQueries = sqlFile.readlines()
-		sqlFile.close()
-		return sqlQueries
-
 def GetResultIdList(dirPath):
 
 	idList = []
 
 	print('INFO:', 'Looking for result files...')
-	proBar = progressbar.ProgressBar()
-	for filename in proBar(os.listdir(dirPath)):
+	for filename in pbar.progressbar(os.listdir(dirPath), widgets=PBAR_WIDGETS, term_width=TERM_WIDTH):
 
 		#looking for all txt files
 		if filename.endswith(".txt") and os.path.isfile(os.path.join(dirPath, filename)):
@@ -241,11 +186,11 @@ def main():
 	print()
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--dir', required=True)
+	parser.add_argument('--dir', required=True, type=str)
 	parser.add_argument('--warmUpTime', required=True, type=int)
+	parser.add_argument('--endTime', required=True, type=int)
 	parser.add_argument('--percentile', required=True, type=int)
-	parser.add_argument('--out', required=True)
-	parser.add_argument('--sql', required=False)
+	parser.add_argument('--out', required=True, type=str)
 
 	args = parser.parse_args()
 
@@ -256,52 +201,39 @@ def main():
 		print('FATAL_ERR:', 'The input directory:', dirPath, 'does not exist, or it is a file!')
 		exit(-1)
 
-	outPath = os.path.abspath(args.out + EXCEL_POSTFIX)
+	outPath = ''
+	if args.out.endswith(CSV_POSTFIX):
+		outPath = os.path.abspath(args.out)
+	else:
+		outPath = os.path.abspath(args.out + CSV_POSTFIX)
 
 	if os.path.exists(outPath):
 		print('FATAL_ERR:', 'The output file path:', outPath, 'already exist!')
 		exit(-1)
-
-	if args.sql != None:
-
-		sqlPath = os.path.abspath(args.sql)
-
-		if not os.path.isfile(sqlPath):
-			print('FATAL_ERR:', 'The SQL file,', outPath, 'does not exist!')
-			exit(-1)
-
-	else:
-
-		sqlPath = None
-
-	sqlQueries = ReadSqlQueries(sqlPath)
 
 	rows = []
 
 	idList = GetResultIdList(dirPath)
 	print('INFO:', 'Processing raw data...')
 
-	numOfThreads = (psutil.cpu_count() * 2) if psutil.cpu_count() != None else 1
+	numOfThreads = (os.cpu_count()) if os.cpu_count() != None else 1
 	sema = threading.Semaphore(value=numOfThreads)
 	parThreadList = []
 	for id in idList:
-		parThread = ResultParserThread(sema, dirPath, id, args.warmUpTime, 1, args.percentile)
+		parThread = ResultParserThread(sema, dirPath, id, args.warmUpTime, args.endTime, args.percentile)
 		parThread.start()
 		parThreadList.append(parThread)
 
 	#Collecting results
 	print('INFO:', 'Collecting results...')
-	proBar = progressbar.ProgressBar()
-	for parThread in proBar(parThreadList):
+	for parThread in pbar.progressbar(parThreadList, widgets=PBAR_WIDGETS, term_width=TERM_WIDTH):
 		rows.append(parThread.JoinAndGetResult())
 
 	summaryDataF = pd.DataFrame(data=rows, columns=COLUMN_NAMES)
 
 	summaryDataF = summaryDataF.astype(COLUMN_TYPES)
 
-	dataFs = ConstructExcelSheets(summaryDataF, sqlQueries)
-
-	WriteExcel(outPath, dataFs)
+	summaryDataF.to_csv(outPath, index=False)
 
 	print()
 
