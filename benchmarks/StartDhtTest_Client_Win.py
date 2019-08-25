@@ -22,6 +22,8 @@ THREAD_COUNT_LIST = [40]
 
 MAX_OP_PER_TICKET_LIST = [500, 1000]
 
+TARGET_THROUGHPUT_LIST = [-1]
+
 BENCHMARKS_HOME_PATH = '.'
 
 def GetBuildDirPath():
@@ -171,7 +173,7 @@ def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNod
 	options += ['-p', ('recordcount=' + str(recCount * numOfNode))]
 	options += ['-p', ('requestdistribution=' + dist)]
 	options += ['-p', ('measurementtype=' + 'raw')]
-	options += ['-p', ('measurement.raw.output_file=' + (outRawPath))]
+	options += ['-p', ('measurement.raw.output_file=' + outRawPath)]
 
 	command = ['cmd.exe', '/c', ycsbPath, 'load', CLIENT_BINDING_NAME, '-P', GetYcsbWorkloadPath(workload), '-threads', str(threadCount)]
 	command += options
@@ -188,7 +190,7 @@ def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNod
 
 	WaitFor(5)
 
-def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket):
+def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp):
 
 	print('INFO:', 'Running the test...')
 
@@ -209,14 +211,18 @@ def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, ma
 
 	#Construct command
 	options = []
+	options += ['-P', GetYcsbWorkloadPath(workload)]
+	options += ['-threads', str(threadCount)]
+	options += ['-target', str(targetThrp)] if targetThrp >= 0 else []
+
 	options += ['-p', ('recordcount=' + str(recCount * numOfNode))]
 	options += ['-p', ('requestdistribution=' + dist)]
 	options += ['-p', ('operationcount=' + str(maxOp))]
 	options += ['-p', ('maxexecutiontime=' + str(maxTime))]
 	options += ['-p', ('measurementtype=' + 'raw')]
-	options += ['-p', ('measurement.raw.output_file=' + (outRawPath))]
+	options += ['-p', ('measurement.raw.output_file=' + outRawPath)]
 
-	command = ['cmd.exe', '/c', ycsbPath, 'run', CLIENT_BINDING_NAME, '-P', GetYcsbWorkloadPath(workload), '-threads', str(threadCount)]
+	command = ['cmd.exe', '/c', ycsbPath, 'run', CLIENT_BINDING_NAME]
 	command += options
 	command += ['>', outRepPath]
 
@@ -238,15 +244,17 @@ def RunOneAttempt(conn, ycsbPath, outDir, workload, dist, recCount, numOfNode, m
 	loadThreadCount = THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1]
 	loadMaxOpPerTicket = MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1]
 
-	outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket)
+	outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket) + '_-1'
 	loadOutPathBase = os.path.join(outDir, 'load', outPathBase)
 	LoadDatabase(conn, ycsbPath, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
 
 	for threadCount in THREAD_COUNT_LIST:
 		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
-			outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket)
-			outPathBase = os.path.join(outDir, outPathBase)
-			RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket)
+			for targetThrp in TARGET_THROUGHPUT_LIST:
+				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket)
+				+ '_' + str(targetThrp)
+				outPathBase = os.path.join(outDir, outPathBase)
+				RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
 
 	st.SocketSendPack(conn, 'Finished')
 
