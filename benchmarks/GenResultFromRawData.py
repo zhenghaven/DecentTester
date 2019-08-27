@@ -22,7 +22,7 @@ PBAR_WIDGETS = [
 	pbar.Percentage(), ' (', pbar.SimpleProgress(), ') ',
 	pbar.Bar(marker='█', left=' |', right='| ', fill='▁'),
 	' ', pbar.Timer(),
-	' | ETA ', pbar.ETA()
+	' | ETA ', pbar.ETA(), ' |'
 ]
 
 def GetYcsbImCsvData(dirPath, resultId):
