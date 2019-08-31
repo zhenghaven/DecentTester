@@ -179,6 +179,7 @@ def ConstructIndexSheet(graphDefs):
 	i = 1
 	for graphDef in graphDefs:
 		rows.append([('Sheet_' + '{0:02d}'.format(i)), graphDef.GetTitle(), graphDef.xLabel, graphDef.yLabel, graphDef.midDataF.shape[0]])
+		i = i + 1
 
 	dataF = pd.DataFrame(data=rows, columns=['Sheet#', 'Title', 'X_Label',  'Y_Label', 'recCount'])
 	dataF.set_index('Sheet#', drop=True, inplace=True)
