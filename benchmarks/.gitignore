@@ -1,2 +1,5 @@
+# Test scripts generated files
+__pycache__/
+
 # Test results
-results/
+results*/

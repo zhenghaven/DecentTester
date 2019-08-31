@@ -7,9 +7,11 @@ import progressbar as pbar
 import pandas as pd
 from python_utils.terminal import get_terminal_size
 
-COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us', 'Overall_Svr_CPU_perc', 'Svr_Node_Proc_CPU_perc']
+COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Target_Throughput',\
+                'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us', 'Avg_Latency_us',\
+                'Overall_Svr_CPU_perc', 'Svr_Node_Proc_CPU_perc']
 
-COLUMN_TYPES = {'Attempt': 'int32', 'Num_of_Node': 'int32', 'Num_of_Thread': 'int32', 'Ops_per_Session': 'int32'}
+COLUMN_TYPES = {'Attempt': 'int32', 'Num_of_Node': 'int32', 'Num_of_Thread': 'int32', 'Ops_per_Session': 'int32', 'Target_Throughput': 'int32'}
 
 CSV_POSTFIX = '.csv'
 
@@ -149,9 +151,10 @@ class ResultParserThread(threading.Thread):
 		timeElapsedMs = ycsbTimeRange[1] - ycsbTimeRange[0] #In millisecond
 		timeElapsedS = timeElapsedMs / 1000 # In sec
 		throughtput = totalOps / timeElapsedS
-		latencyPer = ycsbDataF[COL_NAME_LATENCY].quantile(q=(self.percentile / 100.0), interpolation='higher')
+		perLat = ycsbDataF[COL_NAME_LATENCY].quantile(q=(self.percentile / 100.0), interpolation='higher')
+		avgLat = ycsbDataF[COL_NAME_LATENCY].mean()
 
-		self.ycsbRes = [totalOps, timeElapsedMs, throughtput, latencyPer]
+		self.ycsbRes = [totalOps, timeElapsedMs, throughtput, perLat, avgLat]
 
 		#Process server system status data
 		svrDataF = GetServerStatCsvData(self.dirPath, self.resId)
