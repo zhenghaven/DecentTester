@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/MbedTls/Drbg.h>
 #include <DecentApi/Common/Net/TlsCommLayer.h>
@@ -13,6 +14,8 @@
 #include "UntrustedConnectionPool.h"
 #include "AppNames.h"
 #include "States.h"
+
+//#define COUNT_OPERATION_PER_SESSION
 
 #ifdef DECENT_DHT_NAIVE_RA_VER
 #include <DecentApi/Common/Ra/KeyContainer.h>
@@ -57,6 +60,17 @@ ConnectionManager::ConnectionManager(size_t cacheSize, int64_t opCountMax) :
 	m_opCountMutex(),
 	m_opCount(opCountMax > 0 ? GenRandomInitCount(static_cast<uint64_t>(opCountMax)) : 0)
 {
+#ifdef COUNT_OPERATION_PER_SESSION
+	PRINT_I("Test in operation per session");
+#else
+	PRINT_I("Test in operation per handshake");
+#endif
+
+#ifdef DECENT_DHT_NAIVE_RA_VER
+	PRINT_I("Test with Naive RA");
+#else
+	PRINT_I("Test with DECENT RA");
+#endif
 }
 
 ConnectionManager::~ConnectionManager()
@@ -67,6 +81,57 @@ void ConnectionManager::InitOpCountMax(int64_t opCountMax)
 {
 	m_opCountMax = opCountMax;
 	m_opCount = opCountMax > 0 ? GenRandomInitCount(static_cast<uint64_t>(opCountMax)) : 0;
+
+	PRINT_I("Max Operation Count is: %llu.", opCountMax);
+}
+
+void ConnectionManager::CheckOpCount(const uint64_t addr)
+{
+#ifdef COUNT_OPERATION_PER_SESSION
+
+	if (m_opCountMax > 0)
+	{
+		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
+
+		m_opCount++;
+		if (m_opCount >= static_cast<uint64_t>(m_opCountMax))
+		{
+			m_sessionCache.Clear();
+			m_opCount = 0;
+		}
+	}
+
+#else
+
+	if (m_opCountMax > 0)
+	{
+		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
+
+		auto it = m_idvOpCount.find(addr);
+		if (it == m_idvOpCount.end())
+		{
+			//This address is new, init one
+			auto insertRes = m_idvOpCount.insert(std::make_pair(addr, GenRandomInitCount(static_cast<uint64_t>(m_opCountMax))));
+
+			if (!insertRes.second)
+			{
+				throw RuntimeException("Failed to insert op count.");
+			}
+
+			it = insertRes.first;
+		}
+
+		auto& opCount = it->second;
+
+		opCount++;
+		if (opCount >= static_cast<uint64_t>(m_opCountMax))
+		{
+			m_sessionCache.RemoveAll(addr);
+			opCount = 0;
+		}
+	}
+
+#endif
 }
 
 CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtClient::States & state)
@@ -114,17 +179,7 @@ CntPair ConnectionManager::GetNew(void* cntPoolPtr, const uint64_t & addr, DhtCl
 
 #endif //DECENT_DHT_NAIVE_RA_VER
 
-	if (m_opCountMax > 0)
-	{
-		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
-
-		m_opCount++;
-		if (m_opCount >= static_cast<uint64_t>(m_opCountMax))
-		{
-			m_sessionCache.Clear();
-			m_opCount = 0;
-		}
-	}
+	CheckOpCount(addr);
 
 	return CntPair(std::move(connection), std::move(secComm));
 }
@@ -173,6 +228,8 @@ CntPair ConnectionManager::GetAny(void* cntPoolPtr, DhtClient::States & state)
 	}
 
 #endif //DECENT_DHT_NAIVE_RA_VER
+
+	CheckOpCount(cntPair.second);
 
 	return CntPair(std::move(cntPair.first), std::move(secComm));
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include<mutex>
+#include<map>
 
 #include <DecentApi/Common/Tools/SharedCachingQueue.h>
 #include <DecentApi/Common/Net/SecureConnectionPoolBase.h>
@@ -50,9 +51,12 @@ namespace Decent
 			Tools::SharedCachingQueue<uint64_t, MbedTlsObj::Session> m_sessionCache;
 #endif
 
+			void CheckOpCount(const uint64_t addr);
+
 			int64_t m_opCountMax;
 			std::mutex m_opCountMutex;
 			uint64_t m_opCount;
+			std::map<uint64_t, uint64_t> m_idvOpCount;
 		};
 	}
 }
