@@ -9,7 +9,7 @@ from python_utils.terminal import get_terminal_size
 
 COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Target_Throughput',\
                 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us', 'Avg_Latency_us',\
-                'Overall_Svr_CPU_perc', 'Svr_Node_Proc_CPU_perc']
+                'Overall_Svr_CPU_perc', 'Node_Overall_Svr_CPU_perc', 'Sys_Overall_Svr_CPU_perc', 'Svr_Node_Proc_CPU_perc']
 
 COLUMN_TYPES = {'Attempt': 'int32', 'Num_of_Node': 'int32', 'Num_of_Thread': 'int32', 'Ops_per_Session': 'int32', 'Target_Throughput': 'int32'}
 
@@ -94,11 +94,11 @@ def TrimOffByTimeRange(dataF, tsColName, startTs, endTs):
 
 	return dataF[startIdx:endIdx].reset_index(drop=True)
 
-def ProcSvrCsv(dataF, tsColName, overallColName):
+def ProcSvrCsv(dataF, tsColName, overallColName, nodeOverallColName, sysOverallColName):
 
 	avgs = dataF.drop([tsColName], axis=1).mean(axis=0)
 
-	return [avgs[overallColName], avgs.drop(overallColName).mean()]
+	return [avgs[overallColName], avgs[nodeOverallColName], avgs[sysOverallColName], avgs.drop([overallColName, nodeOverallColName, sysOverallColName]).mean()]
 
 def GetResultIdList(dirPath):
 
@@ -160,7 +160,7 @@ class ResultParserThread(threading.Thread):
 		svrDataF = GetServerStatCsvData(self.dirPath, self.resId)
 		svrDataF = TrimOffByTimeRange(svrDataF, COL_NAME_TIMESTAMP, startTs, endTs)
 
-		self.serverRes = ProcSvrCsv(svrDataF, COL_NAME_TIMESTAMP, 'overall_percent')
+		self.serverRes = ProcSvrCsv(svrDataF, COL_NAME_TIMESTAMP, 'overall_percent', 'node_overall_percent', 'sys_overall_percent')
 
 	def run(self):
 

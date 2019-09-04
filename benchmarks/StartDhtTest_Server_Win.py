@@ -8,15 +8,30 @@ import subprocess
 import SocketTools as st
 import procConfigureTools as pct
 
-AFINITY_LIST = [[3], [4], [5], [7], [6], [1]] #, [0], [2]
+AFINITY_LIST = [[3], [4], [5], [7], [6], [1]]
 DEFAULT_PRIORITY = psutil.REALTIME_PRIORITY_CLASS
 
 DHT_PORT_START = 57756
 
 DHT_PROG_NAME = 'DecentDht_App'
 
+SYS_REL_AESM_NAME = 'aesm_service'
+SYS_REL_WIN_NET_NAME = 'WmiPrvSE'
+SYS_REL_AFINITY_LIST = [0, 2]
+SYS_REL_DEFAULT_PRIORITY = psutil.HIGH_PRIORITY_CLASS
+
 TEST_SERVER_ADDR = ''
 TEST_SERVER_PORT = 57725
+
+def ConfigSysProc():
+
+	for p in pct.FindProcsByName(SYS_REL_AESM_NAME):
+		p.nice(SYS_REL_DEFAULT_PRIORITY)
+		p.cpu_affinity(SYS_REL_AFINITY_LIST)
+
+	for p in pct.FindProcsByName(SYS_REL_WIN_NET_NAME):
+		p.nice(SYS_REL_DEFAULT_PRIORITY)
+		p.cpu_affinity(SYS_REL_AFINITY_LIST)
 
 def SetupTestServer():
 
@@ -115,13 +130,13 @@ def KillTestProgram(procObjs):
 	for procObj in procObjs:
 		procObj.kill()
 
-def GetClientStartEndRound(conn, pList):
+def GetClientStartEndRound(conn, pList, numOfNode):
 
 	clientSignal = st.SocketRecvPack(conn)
 	if clientSignal != 'Start':
 		return False
 
-	sysStatRecorder = pct.SysStatusRecorderThread(pList, 0.1) # Start
+	sysStatRecorder = pct.SysStatusRecorderThread(pList, sum(AFINITY_LIST[:numOfNode], []), SYS_REL_AFINITY_LIST, 0.1) # Start
 	sysStatRecorder.start()
 
 	clientSignal = st.SocketRecvPack(conn)
@@ -135,6 +150,8 @@ def GetClientStartEndRound(conn, pList):
 	return True
 
 def RunOneTestCase(conn):
+
+	ConfigSysProc()
 
 	#Recv num of server nodes to spawn
 	numOfNode = RecvNumOfNode(conn)
@@ -155,10 +172,10 @@ def RunOneTestCase(conn):
 		st.SocketSendPack(conn, 'R')
 		print('INFO:', 'Server is ready.')
 
-		isClientFinished = GetClientStartEndRound(conn, pList)
+		isClientFinished = GetClientStartEndRound(conn, pList, numOfNode)
 
 		while isClientFinished:
-			isClientFinished = GetClientStartEndRound(conn, pList)
+			isClientFinished = GetClientStartEndRound(conn, pList, numOfNode)
 
 		print('INFO:', 'Client has finished the current test case.')
 

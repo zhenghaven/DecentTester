@@ -26,9 +26,11 @@ def ConfigureProc(pIdList, affinityList, priority):
 
 class SysStatusRecorderThread(threading.Thread):
 
-	def __init__(self, pList, interval):
+	def __init__(self, pList, nodeCpuList, sysCpuList, interval):
 		super(SysStatusRecorderThread, self).__init__()
 		self.pList = pList
+		self.nodeCpuList = nodeCpuList
+		self.sysCpuList = sysCpuList
 		self.interval = interval
 		self.stopFlag = threading.Event()
 		self.rows = []
@@ -38,7 +40,11 @@ class SysStatusRecorderThread(threading.Thread):
 		ts = datetime.datetime.now().timestamp()
 		tsMiSec = int(ts * 1000)
 
-		row = [tsMiSec, psutil.cpu_percent(interval=self.interval)]
+		overall = psutil.cpu_percent(interval=self.interval)
+		overallIdvi = psutil.cpu_percent(percpu=True)
+		nodeCpu = [overallIdvi[x] for x in self.nodeCpuList]
+		sysCpu = [overallIdvi[x] for x in self.sysCpuList]
+		row = [tsMiSec, overall, (sum(nodeCpu)/float(len(nodeCpu))), (sum(sysCpu)/float(len(sysCpu)))]
 
 		for p in self.pList:
 			row.append(p.cpu_percent())
@@ -63,15 +69,26 @@ class SysStatusRecorderThread(threading.Thread):
 
 		if (not self.is_alive()) and (self.error == None):
 			return self.rows
+		elif self.error != None:
+			raise self.error
 		else:
 			return []
 
 def ConvertRecord2CsvStr(recRows, pList):
 
-	columns = ['timestamp_ms', 'overall_percent']
+	columns = ['timestamp_ms', 'overall_percent', 'node_overall_percent', 'sys_overall_percent']
 
 	for p in pList:
 		columns.append(str(p.pid))
 
 	dataF = pd.DataFrame(data=recRows, columns=columns)
 	return dataF.to_csv(path_or_buf=None, index=False, line_terminator='\n')
+
+def FindProcsByName(name):
+
+	ls = []
+
+	for p in psutil.process_iter(attrs=['name']):
+		if p.info['name'].startswith(name):
+			ls.append(p)
+	return ls
