@@ -59,7 +59,7 @@ uint64_t DhtClient::GetSuccessorAddress(const std::array<uint8_t, sk_hashSizeByt
 	comm.SendRpc(rpc);
 
 	uint64_t addr = 0;
-	comm.ReceiveStruct(addr);
+	comm.RecvStruct(addr);
 
 	return addr;
 }
@@ -83,7 +83,7 @@ std::vector<uint8_t> DhtClient::AppReadData(const uint64_t addr, void* cntPoolPt
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 	
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 	auto retData = rpcReturned.GetBinaryArg();
@@ -120,7 +120,7 @@ void DhtClient::AppInsertData(const uint64_t addr, void* cntPoolPtr, States& sta
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 
@@ -149,7 +149,7 @@ void DhtClient::AppUpdateData(const uint64_t addr, void* cntPoolPtr, States& sta
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 
@@ -175,7 +175,7 @@ void DhtClient::AppDeleteData(const uint64_t addr, void* cntPoolPtr, States& sta
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 
@@ -201,7 +201,7 @@ uint64_t DhtClient::GetAttrListAddress(const std::string & listName, void * cntP
 	comm.SendRpc(rpc);
 
 	uint64_t addr = 0;
-	comm.ReceiveStruct(addr);
+	comm.RecvStruct(addr);
 
 	return addr;
 }
@@ -230,7 +230,7 @@ void DhtClient::UserInsertAttrList(const uint64_t addr, void * cntPoolPtr, State
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 
@@ -274,7 +274,7 @@ std::vector<uint8_t> Decent::DhtClient::UserReadData(const uint64_t addr, void *
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 	auto retData = rpcReturned.GetBinaryArg();
@@ -332,7 +332,7 @@ void DhtClient::UserUpdateData(const uint64_t addr, void * cntPoolPtr, States & 
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 	const auto& retHasCache = rpcReturned.GetPrimitiveArg<uint8_t>();
@@ -384,7 +384,7 @@ void DhtClient::UserDeleteData(const uint64_t addr, void * cntPoolPtr, States & 
 
 	comm.SendRpc(rpc);
 
-	RpcParser rpcReturned(comm.ReceiveBinary());
+	RpcParser rpcReturned(comm.RecvContainer<std::vector<uint8_t> >());
 
 	const auto& retVal = rpcReturned.GetPrimitiveArg<FileOpRet::NumType>();
 	const auto& retHasCache = rpcReturned.GetPrimitiveArg<uint8_t>();

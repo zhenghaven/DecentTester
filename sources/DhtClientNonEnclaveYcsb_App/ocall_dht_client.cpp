@@ -30,9 +30,9 @@ extern "C" void* ocall_dht_client_cnt_pool_get_dht_any(void* cnt_pool_ptr, uint6
 		}
 
 #ifndef DHT_USER_TEST
-		cntPair.first->SendPack(Dht::RequestCategory::sk_fromApp);
+		cntPair.first->SendContainer(Dht::RequestCategory::sk_fromApp);
 #else
-		cntPair.first->SendPack(Dht::RequestCategory::sk_fromUser);
+		cntPair.first->SendContainer(Dht::RequestCategory::sk_fromUser);
 #endif // DHT_USER_TEST
 
 		if (address)
@@ -69,9 +69,9 @@ extern "C" void* ocall_dht_client_cnt_pool_get_dht(void* cnt_pool_ptr, uint64_t 
 		}
 
 #ifndef DHT_USER_TEST
-		cnt->SendPack(Dht::RequestCategory::sk_fromApp);
+		cnt->SendContainer(Dht::RequestCategory::sk_fromApp);
 #else
-		cnt->SendPack(Dht::RequestCategory::sk_fromUser);
+		cnt->SendContainer(Dht::RequestCategory::sk_fromUser);
 #endif // DHT_USER_TEST
 
 		return new Net::CntPoolConnection<uint64_t>(address, std::move(cnt), cntPoolRef.GetSharedPtr());

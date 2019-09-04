@@ -71,11 +71,11 @@ namespace
 	Initializer::Initializer()
 	{
 		std::unique_ptr<ConnectionBase> serverCon = GetDecentServerConnection();
-		serverCon->SendPack(Ra::RequestCategory::sk_loadWhiteList);
-		serverCon->SendPack(gsk_whiteListKey);
-		serverCon->SendPack(GetConfigManager().GetEnclaveList().GetLoadedWhiteListStr());
+		serverCon->SendContainer(Ra::RequestCategory::sk_loadWhiteList);
+		serverCon->SendContainer(gsk_whiteListKey);
+		serverCon->SendContainer(GetConfigManager().GetEnclaveList().GetLoadedWhiteListStr());
 		char ackMsg[] = "ACK";
-		serverCon->ReceiveRawGuarantee(&ackMsg, sizeof(ackMsg));
+		serverCon->RecvRawAll(&ackMsg, sizeof(ackMsg));
 	}
 
 	Initializer::~Initializer()
