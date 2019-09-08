@@ -35,7 +35,7 @@ namespace
 	{
 		std::string pubKeyPem = states.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
 
-		Hasher::Calc<HashType::SHA256>(pubKeyPem, outId);
+		Hasher<HashType::SHA256>().Calc(outId, pubKeyPem);
 	}
 
 #ifndef DHT_USER_TEST
@@ -181,7 +181,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, void* states, const v
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 #ifndef DHT_USER_TEST
 		AppInsertData(cnt_pool_ptr, statesRef, id, *statesRef.GetTestAccPolicy(), val);
@@ -211,7 +211,7 @@ extern "C" int ecall_dht_client_update(void* cnt_pool_ptr, void* states, const v
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 #ifndef DHT_USER_TEST
 		AppUpdateData(cnt_pool_ptr, statesRef, id, val);
@@ -239,7 +239,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const voi
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 #ifndef DHT_USER_TEST
 		std::vector<uint8_t> val = AppReadData(cnt_pool_ptr, statesRef, id);
@@ -273,7 +273,7 @@ extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, void* states, const v
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 #ifndef DHT_USER_TEST
 		AppDeleteData(cnt_pool_ptr, statesRef, id);

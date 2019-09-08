@@ -119,7 +119,7 @@ extern "C" int ecall_dht_client_insert(void* cnt_pool_ptr, const void* key_buf, 
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 		AppInsertData(cnt_pool_ptr, gs_state, id, GetTestAccPolicyStatic(), val);
 
@@ -144,7 +144,7 @@ extern "C" int ecall_dht_client_update(void* cnt_pool_ptr, const void* key_buf, 
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 		AppUpdateData(cnt_pool_ptr, gs_state, id, val);
 
@@ -167,7 +167,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, const void* key_buf, si
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 		std::vector<uint8_t> val = AppReadData(cnt_pool_ptr, gs_state, id);
 
@@ -201,7 +201,7 @@ extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, const void* key_buf, 
 
 		std::array<uint8_t, sk_hashSizeByte> id;
 
-		Hasher::Calc<HashType::SHA256>(key, id);
+		Hasher<HashType::SHA256>().Calc(id, key);
 
 		AppDeleteData(cnt_pool_ptr, gs_state, id);
 
