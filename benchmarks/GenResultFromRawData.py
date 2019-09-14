@@ -3,9 +3,9 @@ import io
 import sys
 import argparse
 import threading
-import progressbar as pbar
 import pandas as pd
-from python_utils.terminal import get_terminal_size
+import progressbar as pbar
+import ProgressBarConfig as pbarCfg
 
 COLUMN_NAMES = ['Name_Prefix', 'Attempt', 'Num_of_Node', 'Num_of_Thread', 'Ops_per_Session', 'Target_Throughput',\
                 'Ops', 'Time_Elapsed_ms', 'Throughput_op_per_s', 'Percentile_Latency_us', 'Avg_Latency_us',\
@@ -17,15 +17,6 @@ CSV_POSTFIX = '.csv'
 
 COL_NAME_TIMESTAMP = 'timestamp_ms'
 COL_NAME_LATENCY = 'latency_us'
-
-TERM_WIDTH = int(get_terminal_size()[0] * (2/3))
-
-PBAR_WIDGETS = [
-	pbar.Percentage(), ' (', pbar.SimpleProgress(), ') ',
-	pbar.Bar(marker='█', left=' |', right='| ', fill='▁'),
-	' ', pbar.Timer(),
-	' | ETA ', pbar.ETA(), ' |'
-]
 
 def GetYcsbImCsvData(dirPath, resultId):
 
@@ -105,7 +96,7 @@ def GetResultIdList(dirPath):
 	idList = []
 
 	print('INFO:', 'Looking for result files...')
-	for filename in pbar.progressbar(os.listdir(dirPath), widgets=PBAR_WIDGETS, term_width=TERM_WIDTH):
+	for filename in pbar.progressbar(os.listdir(dirPath), **pbarCfg.PBAR_ARGS):
 
 		#looking for all txt files
 		if filename.endswith(".txt") and os.path.isfile(os.path.join(dirPath, filename)):
@@ -229,7 +220,7 @@ def main():
 
 	#Collecting results
 	print('INFO:', 'Collecting results...')
-	for parThread in pbar.progressbar(parThreadList, widgets=PBAR_WIDGETS, term_width=TERM_WIDTH):
+	for parThread in pbar.progressbar(parThreadList, **pbarCfg.PBAR_ARGS):
 		rows.append(parThread.JoinAndGetResult())
 
 	summaryDataF = pd.DataFrame(data=rows, columns=COLUMN_NAMES)

@@ -5,28 +5,14 @@ import argparse
 import statistics
 import sqlalchemy
 import GraphDefinition
-import progressbar as pbar
 import pandas as pd
-from python_utils.terminal import get_terminal_size
+import progressbar as pbar
+import ProgressBarConfig as pbarCfg
 
 DEFAULT_TABLE_NAME = 'FullTestResult'
 
 CSV_POSTFIX = '.csv'
 EXCEL_POSTFIX = '.xlsx'
-
-TERM_WIDTH = int(get_terminal_size()[0] * (2/3))
-
-PBAR_WIDGETS = [
-	pbar.Percentage(), ' (', pbar.SimpleProgress(), ') ',
-	pbar.Bar(marker='█', left=' |', right='| ', fill='▁'),
-	' ', pbar.Timer(),
-	' | ETA ', pbar.ETA()
-]
-
-PBAR_ARGS = {
-	'widgets' : PBAR_WIDGETS,
-	'term_width' : TERM_WIDTH
-}
 
 class MyMedian:
 
@@ -74,7 +60,7 @@ def ReadAllCsvFiles(dirPath):
 	dfWithNames = []
 
 	print('INFO:', 'Reading all CSV files...')
-	for filename in pbar.progressbar(os.listdir(dirPath), **PBAR_ARGS):
+	for filename in pbar.progressbar(os.listdir(dirPath), **pbarCfg.PBAR_ARGS):
 		if filename.endswith(CSV_POSTFIX):
 			root, ext = os.path.splitext(filename)
 			dfWithNames.append((root, pd.read_csv(os.path.join(dirPath, filename))))
@@ -88,7 +74,7 @@ def WriteExcel(outPath, dataTable):
 	with pd.ExcelWriter(outPath) as writer:
 		dataTable[0][1].to_excel(writer, sheet_name='Index')
 		i = 0
-		for item in pbar.progressbar(dataTable, **PBAR_ARGS):
+		for item in pbar.progressbar(dataTable, **pbarCfg.PBAR_ARGS):
 			if i != 0:
 				item[1].to_excel(writer, sheet_name=('Sheet_' + '{0:02d}'.format(i)))
 
@@ -138,7 +124,7 @@ def main():
 
 	#Load SQL database
 	print('INFO:', 'Loading tables into SQL database...')
-	for dfwithName in pbar.progressbar(dfWithNames, **PBAR_ARGS):
+	for dfwithName in pbar.progressbar(dfWithNames, **pbarCfg.PBAR_ARGS):
 		dfwithName[1].to_sql(dfwithName[0], con=sqlEngine, if_exists='replace')
 
 	#Execute SQL queries and generate data tables
