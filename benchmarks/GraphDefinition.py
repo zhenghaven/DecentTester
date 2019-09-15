@@ -173,22 +173,22 @@ class SeriesXy(SeriesBase):
 		super(SeriesXy, self).__init__(jsonObj, defaultSeries)
 
 	def GetMidXColName(self):
-		return super(SeriesXy, self).name + '.' + super(SeriesXy, self).xField
+		return self.table + '.' + self.xField
 
 	def GetMinXColName(self):
-		return super(SeriesXy, self).name + '.' + super(SeriesXy, self).xField + ' Min Err'
+		return self.table + '.' + self.xField + ' Min_Err'
 
 	def GetMaxXColName(self):
-		return super(SeriesXy, self).name + '.' + super(SeriesXy, self).xField + ' Max Err'
+		return self.table + '.' + self.xField + ' Max_Err'
 
 	def GenMidSelectStr(self):
-		return 'SELECT' + ' ' + 'median(' + self.xField + ')' + ', ' + 'median(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
+		return 'SELECT' + ' ' + 'median(' + self.xField + ')' + ' AS ' + '"' + self.GetMidXColName() + '"' + ', ' + 'median(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
 
 	def GenMinSelectStr(self):
-		return 'SELECT' + ' ' + 'minerr(' + self.xField + ')' + ', ' + 'minerr(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
+		return 'SELECT' + ' ' + 'minerr(' + self.xField + ')' + ' AS ' + '"' + self.GetMinXColName() + '"' + ', ' + 'minerr(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
 
 	def GenMaxSelectStr(self):
-		return 'SELECT' + ' ' + 'maxerr(' + self.xField + ')' + ', ' + 'maxerr(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
+		return 'SELECT' + ' ' + 'maxerr(' + self.xField + ')' + ' AS ' + '"' + self.GetMaxXColName() + '"' + ', ' + 'maxerr(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
 
 class Graph:
 

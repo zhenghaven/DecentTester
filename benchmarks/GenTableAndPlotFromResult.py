@@ -13,6 +13,12 @@ DEFAULT_TABLE_NAME = 'FullTestResult'
 
 CSV_POSTFIX = '.csv'
 EXCEL_POSTFIX = '.xlsx'
+EXCEL_MACRO_POSTFIX = '.xlsm'
+EXCEL_BUTTON_CFG = {'macro'  : 'DrawGraph',
+                    'caption': 'Draw Graph',
+                    'width'  : 120,
+                    'height' : 20
+                    }
 
 class MyMedian:
 
@@ -69,9 +75,9 @@ def ReadAllCsvFiles(dirPath):
 
 def WriteExcel(outPath, dataTable):
 
-	print('INFO:', 'Writting results into', outPath, '...')
+	print('INFO:', 'Writting results into', outPath + EXCEL_POSTFIX, '...')
 
-	with pd.ExcelWriter(outPath) as writer:
+	with pd.ExcelWriter(outPath + EXCEL_POSTFIX, engine='xlsxwriter') as writer:
 		dataTable[0][1].to_excel(writer, sheet_name='Index')
 		i = 0
 		for item in pbar.progressbar(dataTable, **pbarCfg.PBAR_ARGS):
@@ -79,6 +85,21 @@ def WriteExcel(outPath, dataTable):
 				item[1].to_excel(writer, sheet_name=('Sheet_' + '{0:02d}'.format(i)))
 
 			i += 1
+
+		if os.path.isfile('vbaProject.bin'):
+			print('INFO:', 'Writting macro-enables Excel file,', outPath + EXCEL_MACRO_POSTFIX, '...')
+			macroWorkBook = writer.book
+			macroWorkBook.filename = outPath + EXCEL_MACRO_POSTFIX
+			macroWorkBook.add_vba_project('vbaProject.bin')
+			for i, item in zip(range(0, len(dataTable)), dataTable):
+				if i == 0:
+					continue
+
+				sheetName = 'Sheet_' + '{0:02d}'.format(i)
+				wSheet = macroWorkBook.get_worksheet_by_name(sheetName)
+				wSheet.insert_button(item[1].shape[0] + 2, 0, EXCEL_BUTTON_CFG)
+
+			writer.save()
 
 def GetStrFromFile(filename):
 
@@ -132,7 +153,7 @@ def main():
 	dataTable = graphDefs.GetCombinedDataTablesWithIndexTable(sqlEngine)
 
 	#Output to Excel file
-	excelOutPath = os.path.join(dirPath, 'data_for_graphs' + EXCEL_POSTFIX)
+	excelOutPath = os.path.join(dirPath, 'data_for_graphs')
 	WriteExcel(excelOutPath, dataTable)
 
 	print()
