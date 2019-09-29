@@ -112,6 +112,7 @@ class ResultParserThread(threading.Thread):
 	def __init__(self, sema, dirPath, resId, warnupT, terminateT, percentile):
 		super(ResultParserThread, self).__init__()
 		self.sema = sema
+		self.finishFlag = threading.Event()
 		self.dirPath = dirPath
 		self.resId = resId
 		self.warnupT = warnupT
@@ -160,6 +161,7 @@ class ResultParserThread(threading.Thread):
 			self.sema.acquire()
 			self.ProcessResultSet()
 			self.sema.release()
+			self.finishFlag.set()
 
 		except Exception as e:
 			self.error = e
@@ -174,6 +176,9 @@ class ResultParserThread(threading.Thread):
 			raise self.error
 		else:
 			return self.idRes + self.ycsbRes + self.serverRes
+
+	def IsFinished(self):
+		return self.finishFlag.isSet();
 
 def main():
 
@@ -210,7 +215,7 @@ def main():
 	idList = GetResultIdList(dirPath)
 	print('INFO:', 'Processing raw data...')
 
-	numOfThreads = (os.cpu_count()) if os.cpu_count() != None else 1
+	numOfThreads = 4
 	sema = threading.Semaphore(value=numOfThreads)
 	parThreadList = []
 	for id in idList:
@@ -220,8 +225,13 @@ def main():
 
 	#Collecting results
 	print('INFO:', 'Collecting results...')
-	for parThread in pbar.progressbar(parThreadList, **pbarCfg.PBAR_ARGS):
-		rows.append(parThread.JoinAndGetResult())
+	progBar = pbar.ProgressBar(max_value=len(parThreadList), **pbarCfg.PBAR_ARGS)
+	while len(parThreadList) > 0:
+		for item in parThreadList:
+			if item.IsFinished():
+				rows.append(item.JoinAndGetResult())
+				parThreadList.remove(item)
+				progBar.update(len(rows))
 
 	summaryDataF = pd.DataFrame(data=rows, columns=COLUMN_NAMES)
 
