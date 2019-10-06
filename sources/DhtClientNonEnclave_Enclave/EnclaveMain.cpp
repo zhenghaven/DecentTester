@@ -8,9 +8,12 @@
 #include <DecentApi/Common/Common.h>
 #include <DecentApi/Common/make_unique.h>
 #include <DecentApi/Common/GeneralKeyTypes.h>
+
+#include <DecentApi/Common/MbedTls/EcKey.h>
+#include <DecentApi/Common/MbedTls/Drbg.h>
 #include <DecentApi/Common/MbedTls/Hasher.h>
 
-#include <DecentApi/Common/Ra/Crypto.h>
+#include <DecentApi/Common/Ra/ServerX509Cert.h>
 #include <DecentApi/Common/Ra/KeyContainer.h>
 #include <DecentApi/Common/Ra/TlsConfigWithName.h>
 #include <DecentApi/DecentAppEnclave/AppCertContainer.h>
@@ -33,7 +36,7 @@ namespace
 {
 	static void GetUserId(States& states, general_256bit_hash& outId)
 	{
-		std::string pubKeyPem = states.GetKeyContainer().GetSignKeyPair()->ToPubPemString();
+		std::string pubKeyPem = states.GetKeyContainer().GetSignKeyPair()->GetPublicPem();
 
 		Hasher<HashType::SHA256>().Calc(outId, pubKeyPem);
 	}
@@ -138,9 +141,12 @@ extern "C" int ecall_dht_client_init(void* cnt_pool_ptr, void* states)
 
 	Ra::AppCertContainer& certContainer = statesRef.GetAppCertContainer();
 
-	if (!certContainer.GetCert() || !*certContainer.GetCert())
+	if (!certContainer.GetCert())
 	{
-		std::shared_ptr<MbedTlsObj::X509Cert> cert = std::make_shared<Ra::ServerX509>(*statesRef.GetKeyContainer().GetSignKeyPair(), "N/A", "N/A", "N/A");
+		EcKeyPair<EcKeyType::SECP256R1> tmpPrvKey(*statesRef.GetKeyContainer().GetSignKeyPair());
+		Ra::ServerX509CertWriter certWrt(tmpPrvKey, "N/A", "N/A", "N/A");
+		Drbg drbg;
+		std::shared_ptr<X509Cert> cert = std::make_shared<Ra::ServerX509Cert>(certWrt.GenerateDer(drbg));
 		certContainer.SetCert(cert);
 	}
 

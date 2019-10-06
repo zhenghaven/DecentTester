@@ -1,7 +1,9 @@
 #include "DhtClientApp.h"
 
 #include <DecentApi/Common/Common.h>
-#include <DecentApi/Common/MbedTls/MbedTlsObjects.h>
+
+#include <DecentApi/Common/MbedTls/EcKey.h>
+
 #include <DecentApi/Common/Ra/KeyContainer.h>
 #include <DecentApi/Common/Ra/WhiteList/LoadedList.h>
 #include <DecentApi/Common/Ra/WhiteList/DecentServer.h>
@@ -20,6 +22,7 @@ extern "C" int ecall_dht_client_read(void* cnt_pool_ptr, void* states, const voi
 extern "C" int ecall_dht_client_delete(void* cnt_pool_ptr, void* states, const void* key_buf, size_t key_size);
 
 using namespace Decent::DhtClient;
+using namespace Decent::MbedTlsObj;
 
 namespace
 {
@@ -41,7 +44,7 @@ DhtClientApp::DhtClientApp() :
 	m_certContainer(std::make_unique<Ra::AppCertContainer>()),
 	m_keyContainer(
 		std::make_unique<Ra::KeyContainer>(
-			std::make_unique<MbedTlsObj::ECKeyPair>(MbedTlsObj::ECKeyPair::FromPemString(gsk_testPrvKeyPem))
+			std::make_unique<EcKeyPair<EcKeyType::SECP256R1> >(gsk_testPrvKeyPem)
 			)),
 	m_serverWl(std::make_unique<Ra::WhiteList::DecentServer>()),
 	m_connectionMgr(std::make_unique<ConnectionManager>(50, -1)),
