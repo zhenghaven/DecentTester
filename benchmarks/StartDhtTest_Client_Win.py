@@ -237,27 +237,6 @@ def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, ma
 
 	WaitFor(5)
 
-def RunOneAttempt(conn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
-
-
-	CreateDirs(os.path.join(outDir, 'load'))
-	loadThreadCount = THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1]
-	loadMaxOpPerTicket = MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1]
-
-	outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket) + '_-1'
-	loadOutPathBase = os.path.join(outDir, 'load', outPathBase)
-	LoadDatabase(conn, ycsbPath, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
-
-	for threadCount in THREAD_COUNT_LIST:
-		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
-			for targetThrp in TARGET_THROUGHPUT_LIST:
-				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) \
-							+ '_' + str(targetThrp)
-				outPathBase = os.path.join(outDir, outPathBase)
-				RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
-
-	st.SocketSendPack(conn, 'Finished')
-
 def SendNumOfNode(conn, numOfNode):
 
 	st.SocketSend_uint64(conn, numOfNode)
@@ -265,29 +244,45 @@ def SendNumOfNode(conn, numOfNode):
 	if st.SocketRecvPack(conn) != 'OK':
 		raise RuntimeError('Server doesn\'t accept the numOfNode=' + numOfNode + ' !')
 
-def RunOneTypeNodeSetup(serverConn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptCount):
+def RunOneTypeNodeSetup(serverConn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
 
 	UpdateClientConfig(numOfNode)
 
-	for i in range(1, attemptCount + 1):
+	#Tell server we have test to perform
+	st.SocketSendPack(serverConn, 'Test')
 
-		#Tell server we have test to perform
-		st.SocketSendPack(serverConn, 'Test')
+	#Tell server how many node we need
+	print('INFO:', 'Telling server how many node we need...')
+	SendNumOfNode(serverConn, numOfNode)
 
-		#Tell server how many node we need
-		print('INFO:', 'Telling server how many node we need...')
-		SendNumOfNode(serverConn, numOfNode)
+	#Wait for server to complete the setup process
+	print('INFO:', 'Waiting for server to complete the setup process...')
+	clientSignal = st.SocketRecvPack(serverConn)
+	if clientSignal != 'R':
+		raise RuntimeError('Server error during setup process.')
 
-		#Wait for server to complete the setup process
-		print('INFO:', 'Waiting for server to complete the setup process...')
-		clientSignal = st.SocketRecvPack(serverConn)
-		if clientSignal != 'R':
-			raise RuntimeError('Server error during setup process.')
+	#Begin testing
+	print('INFO:', 'Begin testing...')
 
-		#Begin testing
-		print('INFO:', 'Begin testing...')
-		RunOneAttempt(serverConn, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, i)
-		print('INFO:', 'Finished one attempt.')
+	CreateDirs(os.path.join(outDir, 'load'))
+	loadThreadCount = THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1]
+	loadMaxOpPerTicket = MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1]
+
+	outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket) + '_-1'
+	loadOutPathBase = os.path.join(outDir, 'load', outPathBase)
+	LoadDatabase(serverConn, ycsbPath, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
+
+	for threadCount in THREAD_COUNT_LIST:
+		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
+			for targetThrp in TARGET_THROUGHPUT_LIST:
+				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) \
+							+ '_' + str(maxOpPerTicket) + '_' + str(targetThrp)
+				outPathBase = os.path.join(outDir, outPathBase)
+				RunTest(serverConn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
+
+	st.SocketSendPack(serverConn, 'Finished')
+
+	print('INFO:', 'Finished test with', numOfNode ,'nodes.')
 
 def GetServerConnection():
 
@@ -347,8 +342,10 @@ def main():
 	maxNodeNum = args.maxNode
 
 	try:
-		for i in range(minNodeNum, maxNodeNum + 1):
-			RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, i, args.maxOp, args.maxTime, args.attemptN)
+		for attemptNum in range(1, args.attemptN + 1):
+			for nodeNum in range(minNodeNum, maxNodeNum + 1):
+				RunOneTypeNodeSetup(conn, GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, nodeNum, args.maxOp, args.maxTime, attemptNum)
+			print('INFO:', 'Finished attempt', attemptNum, '.')
 
 		#Tell server we are done
 		st.SocketSendPack(conn, 'Done')
