@@ -8,7 +8,6 @@ import datetime
 import argparse
 import subprocess
 import SocketTools as st
-import procConfigureTools as pct
 
 DEFAULT_PRIORITY = psutil.REALTIME_PRIORITY_CLASS
 
@@ -118,6 +117,15 @@ def CreateDirs(dirPath):
 		print('INFO:', 'Creating directories with path:', dirPath, '...')
 		os.makedirs(dirPath)
 
+def FindProcsByName(name):
+
+	ls = []
+
+	for p in psutil.process_iter(attrs=['name']):
+		if p.info['name'].startswith(name):
+			ls.append(p)
+	return ls
+
 def ExecuteYcsbTestCommand(command):
 
 	#print('INFO:', 'Executed command:', ' '.join(command))
@@ -125,7 +133,7 @@ def ExecuteYcsbTestCommand(command):
 
 	#Sets priority of the JVM:
 	WaitFor(0.2)
-	for p in pct.FindProcsByName('java'):
+	for p in FindProcsByName('java'):
 		p.nice(DEFAULT_PRIORITY)
 
 	print('INFO:', 'Executed command:', ' '.join(procObj.args))
@@ -243,8 +251,8 @@ def RunOneAttempt(conn, ycsbPath, outDir, workload, dist, recCount, numOfNode, m
 	for threadCount in THREAD_COUNT_LIST:
 		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
 			for targetThrp in TARGET_THROUGHPUT_LIST:
-				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket)
-				+ '_' + str(targetThrp)
+				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) + '_' + str(maxOpPerTicket) \
+							+ '_' + str(targetThrp)
 				outPathBase = os.path.join(outDir, outPathBase)
 				RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
 
