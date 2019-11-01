@@ -43,17 +43,48 @@ def SetupTestServer():
 
 	return svr
 
-def AcceptTestClient(svr):
+def AcceptTestClients(svr):
 
-	print('INFO:', 'Accepting client\'s connection...')
+	print('INFO:', 'Accepting clients\' connection...')
 
 	conn, addr = svr.accept()
 
 	if conn == None:
-		raise RuntimeError('Failed to accept client\'s connection!')
+		raise RuntimeError('Failed to accept client\'s connection.')
 
-	print('INFO:', 'Test client is connected from', addr)
-	return conn
+	totalClient = st.SocketRecv_uint64(conn)
+	clientI = st.SocketRecv_uint64(conn)
+	if totalClient <= 0:
+		raise RuntimeError('totalClient', totalClient, 'out of range.')
+	if clientI >= totalClient:
+		raise RuntimeError('ClientI', clientI, 'out of range.')
+
+	connArr = [None for i in range(0, totalClient)]
+	connArr[clientI] = conn
+
+	print('INFO:', 'Test client', clientI ,'is connected from', addr)
+
+	for i in range(0, totalClient - 1):
+		conn, addr = svr.accept()
+
+		if conn == None:
+			raise RuntimeError('Failed to accept client\'s connection!')
+
+		totalClient = st.SocketRecv_uint64(conn)
+		clientI = st.SocketRecv_uint64(conn)
+
+		if totalClient != len(connArr):
+			raise RuntimeError('Total number of clients said by client', clientI, 'doesn\'t match', len(connArr), 'said by first client.')
+		if clientI >= totalClient:
+			raise RuntimeError('ClientI', clientI, 'out of range.')
+		if connArr[clientI] != None:
+			raise RuntimeError('Client', clientI, 'is already connected.')
+
+		connArr[clientI] = conn
+
+		print('INFO:', 'Test client', clientI ,'is connected from', addr)
+
+	return connArr
 
 def RecvNumOfNode(conn):
 
@@ -130,31 +161,47 @@ def KillTestProgram(procObjs):
 	for procObj in procObjs:
 		procObj.kill()
 
-def GetClientStartEndRound(conn, pList, numOfNode):
+def GetClientsStartEndRound(connArr, pList, numOfNode):
 
-	clientSignal = st.SocketRecvPack(conn)
-	if clientSignal != 'Start':
-		return False
+	for conn in connArr:
+		clientSignal = st.SocketRecvPack(conn)
+		# Any non-"Start" reply will terminate the test
+		if clientSignal != 'Start':
+			return False
 
 	sysStatRecorder = pct.SysStatusRecorderThread(pList, sum(AFINITY_LIST[:numOfNode], []), SYS_REL_AFINITY_LIST, 0.1) # Start
 	sysStatRecorder.start()
 
-	clientSignal = st.SocketRecvPack(conn)
+	for conn in connArr:
+		st.SocketSendPack(conn, 'Proceed')
+
+	#----- Master client:
+	clientSignal = st.SocketRecvPack(connArr[0])
 	#Any signal will be treated as end.
 	rec = sysStatRecorder.StopAndGetResult() # End
 
+	#----- sub-clients:
+	for i in range(1, len(connArr)):
+		clientSignal = st.SocketRecvPack(connArr[i])
+		#Any signal will be treated as end.
+
+	#----- Master client:
 	recCsvStr = pct.ConvertRecord2CsvStr(rec, pList)
 	#Send CSV string
-	st.SocketSendPack(conn, recCsvStr)
+	st.SocketSendPack(connArr[0], recCsvStr)
+
+	#----- sub-clients:
+	for i in range(1, len(connArr)):
+		st.SocketSendPack(connArr[i], '')
 
 	return True
 
-def RunOneTestCase(conn):
+def RunOneTestCase(connArr):
 
 	ConfigSysProc()
 
 	#Recv num of server nodes to spawn
-	numOfNode = RecvNumOfNode(conn)
+	numOfNode = RecvNumOfNode(connArr[0])
 
 	procObjs = None
 
@@ -168,35 +215,36 @@ def RunOneTestCase(conn):
 		#Configure CPU affinity & priority etc...
 		pList = pct.ConfigureProc(pidList, AFINITY_LIST, DEFAULT_PRIORITY)
 
-		#Now, server is ready
-		st.SocketSendPack(conn, 'R')
-		print('INFO:', 'Server is ready.')
+		for conn in connArr:
+			#Now, server is ready
+			st.SocketSendPack(conn, 'R')
+			print('INFO:', 'Server is ready.')
 
-		isClientFinished = GetClientStartEndRound(conn, pList, numOfNode)
+		isClientFinished = GetClientsStartEndRound(connArr, pList, numOfNode)
 
 		while isClientFinished:
-			isClientFinished = GetClientStartEndRound(conn, pList, numOfNode)
+			isClientFinished = GetClientsStartEndRound(connArr, pList, numOfNode)
 
 		print('INFO:', 'Client has finished the current test case.')
 
 	finally:
 		KillTestProgram(procObjs)
 
-def ListenToClient(conn):
+def ListenToClients(connArr):
 
-	clientSignal = st.SocketRecvPack(conn)
+	clientSignal = st.SocketRecvPack(connArr[0])
 
 	while clientSignal == 'Test':
-		RunOneTestCase(conn)
-		clientSignal = st.SocketRecvPack(conn)
+		RunOneTestCase(connArr)
+		clientSignal = st.SocketRecvPack(connArr[0])
 
 def main():
 
 	svr = SetupTestServer()
 
-	conn = AcceptTestClient(svr)
+	connArr = AcceptTestClients(svr)
 
-	ListenToClient(conn)
+	ListenToClients(connArr)
 
 	print('INFO:', 'Tests are finished!')
 
