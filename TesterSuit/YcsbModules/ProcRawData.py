@@ -22,7 +22,7 @@ YCSB_COL_NAME_LATENCY   = 'latency(us)'
 
 CSV_FILE_SUFFIX = '.csv'
 
-NUMBER_OF_THREADS = 4
+NUMBER_OF_THREADS = 16
 
 ID_COMPONENT_REPLACE_FUNC = { \
 	'*' : lambda s : '*' \
@@ -128,80 +128,106 @@ def GenIdWithWildcard(id, idDef):
 
 	return '_'.join([item if defItem is None else ID_COMPONENT_REPLACE_FUNC[defItem[0]](item) for item, defItem in zip(idComponets, idDef)])
 
-def ProcRawData(resSetName, dirPathList, idSuffix, idDef, outputDirPath, warmupTime, endTime, latPercentile, isFailOpsAllowed, resColNames, resColTypes):
+class RawDataProcessor:
 
-	#Convert directory path to absolute path
-	absDirPathList = [os.path.abspath(dirPath) for dirPath in dirPathList]
+	def __init__(self, resSetName, dirPathList, idSuffix, idDef, outputDirPath, warmupTime, endTime, latPercentile, isFailOpsAllowed, resColNames, resColTypes):
 
-	for absDirPath in absDirPathList:
-		if not os.path.exists(absDirPath):
-			raise RuntimeError('The input directory doesn\'t exist (path='+ absDirPath +').')
-		elif os.path.isfile(absDirPath):
-			raise RuntimeError('The given input directory path is a file (path='+ absDirPath +').')
+		#------- Pre-Checks:
 
-	absOutputDirPath = os.path.abspath(outputDirPath)
-	absOutputPath = os.path.join(absOutputDirPath, resSetName + CSV_FILE_SUFFIX)
+		# Convert directory path to absolute path
+		absDirPathList = [os.path.abspath(dirPath) for dirPath in dirPathList]
 
-	print('INFO:', 'Looking for result files...')
-	idWildcardPairListList = [[(id, GenIdWithWildcard(id, idDef)) for id in GetResultIdList(absDirPath, idSuffix)] for absDirPath in absDirPathList]
+		for absDirPath in absDirPathList:
+			if not os.path.exists(absDirPath):
+				raise RuntimeError('The input directory doesn\'t exist (path='+ absDirPath +').')
+			elif os.path.isfile(absDirPath):
+				raise RuntimeError('The given input directory path is a file (path='+ absDirPath +').')
 
-	# Sort each list
-	pairListLen = len(idWildcardPairListList[0])
+		absOutputDirPath = os.path.abspath(outputDirPath)
+		absOutputPath = os.path.join(absOutputDirPath, resSetName + CSV_FILE_SUFFIX)
 
-	if pairListLen is 0:
-		raise RuntimeError('There is no data to process for result set ' + resSetName + '.')
+		# Getting ID pairs:
+		# print('INFO:', 'Looking for result files...')
+		idWildcardPairListList = [[(id, GenIdWithWildcard(id, idDef)) for id in GetResultIdList(absDirPath, idSuffix)] for absDirPath in absDirPathList]
 
-	for idWildcardPairList in idWildcardPairListList:
-		if len(idWildcardPairList) != pairListLen:
-			raise RuntimeError('There are unmatched test result pair in a result set.')
-		idWildcardPairList.sort(key=lambda pair : pair[1])
-		#print('INFO:', idWildcardPairList)
+		# Sort each list
+		pairListLen = len(idWildcardPairListList[0])
 
-	# Ensure all pairs are matched
-	for pairIdx in range(0, pairListLen):
-		cmpId = idWildcardPairListList[0][pairIdx][1]
-		# tmpPrint = cmpId
-		for pairListIdx in range(1, len(idWildcardPairListList)):
-			# tmpPrint += ' = ' + idWildcardPairListList[pairListIdx][pairIdx][1]
-			if idWildcardPairListList[pairListIdx][pairIdx][1] != cmpId:
+		if pairListLen is 0:
+			raise RuntimeError('There is no data to process for result set ' + resSetName + '.')
+
+		for idWildcardPairList in idWildcardPairListList:
+			if len(idWildcardPairList) != pairListLen:
 				raise RuntimeError('There are unmatched test result pair in a result set.')
-		# print(tmpPrint)
+			idWildcardPairList.sort(key=lambda pair : pair[1])
+			#print('INFO:', idWildcardPairList)
 
-	# Construct ID pair list
-	idPairList = [[idWildcardPairListList[pairListIdx][pairIdx][0] for pairListIdx in range(0, len(idWildcardPairListList))] for pairIdx in range(0, pairListLen)]
-	#print(idPairList)
+		# Ensure all pairs are matched
+		for pairIdx in range(0, pairListLen):
+			cmpId = idWildcardPairListList[0][pairIdx][1]
+			# tmpPrint = cmpId
+			for pairListIdx in range(1, len(idWildcardPairListList)):
+				# tmpPrint += ' = ' + idWildcardPairListList[pairListIdx][pairIdx][1]
+				if idWildcardPairListList[pairListIdx][pairIdx][1] != cmpId:
+					raise RuntimeError('There are unmatched test result pair in a result set.')
+			# print(tmpPrint)
 
-	rows = []
+		# Construct ID pair list
+		idPairList = [[idWildcardPairListList[pairListIdx][pairIdx][0] for pairListIdx in range(0, len(idWildcardPairListList))] for pairIdx in range(0, pairListLen)]
+		#print(idPairList)
 
-	print('INFO:', 'Processing...')
-	sema = threading.Semaphore(value=NUMBER_OF_THREADS)
-	parThreadList = []
-	for idPair in idPairList:
-		parThread = ResultParserThread(sema, absDirPathList, idPair, idDef, warmupTime, endTime, latPercentile, isFailOpsAllowed)
-		parThread.start()
-		parThreadList.append(parThread)
+		# Check latency percentile range
+		if not (0 < latPercentile and latPercentile < 100):
+			raise RuntimeError('Latency percentile given is out of range.')
 
-	# Collecting results
-	error = None
-	progBar = pbar.ProgressBar(max_value=len(parThreadList), **pbarCfg.PBAR_ARGS)
-	progBar.update(0)
-	while len(parThreadList) > 0:
-		for item in parThreadList:
-			if item.IsFinished():
-				try:
-					rows.append(item.JoinAndGetResult())
-				except Exception as e:
-					print('FATAL_ERROR:', 'Exception raised.')
-					rows.append(None)
-					error = e if error is None else error
-				parThreadList.remove(item)
-				progBar.update(len(rows))
+		self.resSetName = resSetName
+		self.absDirPathList = absDirPathList
+		self.absOutputDirPath = absOutputDirPath
+		self.absOutputPath = absOutputPath
+		self.idPairList = idPairList
+		self.idDef = idDef
+		self.warmupTime = warmupTime
+		self.endTime = endTime
+		self.latPercentile = latPercentile
+		self.isFailOpsAllowed = isFailOpsAllowed
+		self.resColNames = resColNames
+		self.resColTypes = resColTypes
+		self.resDF = []
 
-	if error is not None:
-		raise error
+	def Process(self):
 
-	df = pd.DataFrame(data=rows, columns=resColNames)
+		#print('INFO:', 'Processing...')
+		sema = threading.Semaphore(value=NUMBER_OF_THREADS)
+		parThreadList = []
+		for idPair in self.idPairList:
+			parThread = ResultParserThread(sema, self.absDirPathList, idPair, self.idDef, self.warmupTime, self.endTime, self.latPercentile, self.isFailOpsAllowed)
+			parThread.start()
+			parThreadList.append(parThread)
 
-	df = df.astype(resColTypes)
+		resRows = []
 
-	df.to_csv(absOutputPath, index=False)
+		# Collecting results
+		error = None
+		progBar = pbar.ProgressBar(max_value=len(parThreadList), **pbarCfg.PBAR_ARGS)
+		progBar.update(0)
+		while len(parThreadList) > 0:
+			for item in parThreadList:
+				if item.IsFinished():
+					try:
+						resRows.append(item.JoinAndGetResult())
+					except Exception as e:
+						print('FATAL_ERROR:', 'Exception raised.')
+						resRows.append(None)
+						error = e if error is None else error
+					parThreadList.remove(item)
+					progBar.update(len(resRows))
+
+		if error is not None:
+			raise error
+
+		self.resDF = pd.DataFrame(data=resRows, columns=self.resColNames)
+		self.resDF = self.resDF.astype(self.resColTypes)
+
+	def SaveResult(self):
+
+		self.resDF.to_csv(self.absOutputPath, index=False)

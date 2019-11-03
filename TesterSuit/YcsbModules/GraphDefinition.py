@@ -78,7 +78,7 @@ class SeriesBase:
 		return 'SELECT' + ' ' + self.xField + ' AS ' + '"' + self.GetMaxXColName() + '"' + ', ' + 'maxerr(' + self.yField + ')' + ' AS ' + '"' + self.GetMaxYColName() + '"'
 
 	def GenFromStr(self):
-		return 'FROM' + ' ' + self.table
+		return 'FROM' + ' ' + '"' + self.table + '"'
 
 	def GenMidFromStr(self):
 		return self.GenFromStr()
@@ -173,13 +173,13 @@ class SeriesXy(SeriesBase):
 		super(SeriesXy, self).__init__(jsonObj, defaultSeries)
 
 	def GetMidXColName(self):
-		return self.table + '.' + self.xField
+		return '"' + self.table + '"' + '.' + self.xField
 
 	def GetMinXColName(self):
-		return self.table + '.' + self.xField + ' Min_Err'
+		return '"' + self.table + '"' + '.' + self.xField + ' Min_Err'
 
 	def GetMaxXColName(self):
-		return self.table + '.' + self.xField + ' Max_Err'
+		return '"' + self.table + '"' + '.' + self.xField + ' Max_Err'
 
 	def GenMidSelectStr(self):
 		return 'SELECT' + ' ' + 'median(' + self.xField + ')' + ' AS ' + '"' + self.GetMidXColName() + '"' + ', ' + 'median(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
