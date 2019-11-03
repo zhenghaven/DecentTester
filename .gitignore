@@ -43,3 +43,6 @@
 
 # Mac OS
 *.DS_Store
+
+# Test scripts generated files
+__pycache__/

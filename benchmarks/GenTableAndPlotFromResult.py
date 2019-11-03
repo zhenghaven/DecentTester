@@ -101,13 +101,6 @@ def WriteExcel(outPath, dataTable):
 
 			writer.save()
 
-def GetStrFromFile(filename):
-
-	file = open(filename, 'r')
-	res = file.read()
-	file.close()
-	return res
-
 def main():
 
 	print()
