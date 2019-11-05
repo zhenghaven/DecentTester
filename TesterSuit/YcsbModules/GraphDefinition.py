@@ -1,12 +1,28 @@
+import os
 import json
 import enum
-import pandas as pd
+import pandas as pd               # pip install pandas
+import plotly.graph_objects as go # pip install plotly==4.2.1
+
+PLOTY_MARKER_SELECTED_SYMBOLS = [
+	'circle',			'square',			'diamond',			'cross',			'x',
+	'star',				'hexagram',			'hourglass',		'triangle-up',		'triangle-down',
+	'triangle-left',	'triangle-right',	'pentagon',			'hexagon',			'triangle-ne',
+	'triangle-se',		'triangle-sw',		'triangle-nw'
+]
 
 class GraphTypes(enum.Enum):
-	CATEGORY = 0
-	XY       = 1
+
+	CATEGORY = (0, 'category')
+	XY       = (1, 'linear')
+
+	def __init__(self, idx, plotyType):
+
+		self.idx = idx
+		self.plotyType = plotyType
 
 	def ShortName(self):
+
 		return self.name
 
 class DefaultSeries:
@@ -150,8 +166,61 @@ class SeriesBase:
 	def GetMaxDataFromSql(self, sqlEngine):
 		return pd.read_sql_query(self.GenMaxSqlQuery(), con=sqlEngine)
 
+	def GetMidXY(self, sqlEngine):
+		pass
+
+	def GetPlotyErrorXY(self, sqlEngine):
+		pass
+
 	def TestPrint(self):
 		print(self.GenMidSqlQuery())
+
+	def GetScatter(self, sqlEngine, idx, markerSym = None):
+
+		if markerSym is None and idx >= len(PLOTY_MARKER_SELECTED_SYMBOLS):
+			raise RuntimeError('The number of series is more than the selected marker symbols')
+
+		markerSym = markerSym if markerSym is not None else PLOTY_MARKER_SELECTED_SYMBOLS[idx]
+
+		midXY = self.GetMidXY(sqlEngine)
+		errorXY = self.GetPlotyErrorXY(sqlEngine)
+
+		if 'X' in errorXY and 'Y' in errorXY:
+			return go.Scatter(
+				name = self.name,
+				mode = 'lines+markers',
+				marker = {'symbol' : markerSym, 'size' : 15},
+				x = midXY['X'],
+				y = midXY['Y'],
+				error_x = errorXY['X'],
+				error_y = errorXY['Y']
+			)
+		elif 'X' in errorXY:
+			return go.Scatter(
+				name = self.name,
+				mode = 'lines+markers',
+				marker = {'symbol' : markerSym, 'size' : 15},
+				x = midXY['X'],
+				y = midXY['Y'],
+				error_x = errorXY['X']
+			)
+		elif 'Y' in errorXY:
+			return go.Scatter(
+				name = self.name,
+				mode = 'lines+markers',
+				marker = {'symbol' : markerSym, 'size' : 15},
+				x = midXY['X'],
+				y = midXY['Y'],
+				error_y = errorXY['Y']
+			)
+		else:
+			return go.Scatter(
+				name = self.name,
+				mode = 'lines+markers',
+				marker = {'symbol' : markerSym, 'size' : 15},
+				x = midXY['X'],
+				y = midXY['Y']
+			)
 
 class SeriesCategory(SeriesBase):
 
@@ -166,6 +235,23 @@ class SeriesCategory(SeriesBase):
 
 	def GetMaxDataFromSql(self, sqlEngine):
 		return super(SeriesCategory, self).GetMaxDataFromSql(sqlEngine).set_index(super(SeriesCategory, self).GetMaxXColName(), drop=True)
+
+	def GetMidXY(self, sqlEngine):
+		df = self.GetMidDataFromSql(sqlEngine)
+		return { 'X' : df.index.tolist(), 'Y' : df[df.columns[0]].tolist()}
+
+	def GetPlotyErrorXY(self, sqlEngine):
+		minDF = self.GetMinDataFromSql(sqlEngine)
+		maxDF = self.GetMaxDataFromSql(sqlEngine)
+
+		return {
+			'Y' : {
+				'type' :     'data',
+				'symmetric' : False,
+				'array' :      maxDF[maxDF.columns[0]].tolist(),
+				'arrayminus' : minDF[minDF.columns[0]].tolist()
+			}
+		}
 
 class SeriesXy(SeriesBase):
 
@@ -190,6 +276,29 @@ class SeriesXy(SeriesBase):
 	def GenMaxSelectStr(self):
 		return 'SELECT' + ' ' + 'maxerr(' + self.xField + ')' + ' AS ' + '"' + self.GetMaxXColName() + '"' + ', ' + 'maxerr(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
 
+	def GetMidXY(self, sqlEngine):
+		df = self.GetMidDataFromSql(sqlEngine)
+		return { 'X' : df[df.columns[0]].tolist(), 'Y' : df[df.columns[1]].tolist()}
+
+	def GetPlotyErrorXY(self, sqlEngine):
+		minDF = self.GetMinDataFromSql(sqlEngine)
+		maxDF = self.GetMaxDataFromSql(sqlEngine)
+
+		return {
+			'X' : {
+				'type' :     'data',
+				'symmetric' : False,
+				'array' :      maxDF[maxDF.columns[0]].tolist(),
+				'arrayminus' : minDF[minDF.columns[0]].tolist()
+			},
+			'Y' : {
+				'type' :     'data',
+				'symmetric' : False,
+				'array' :      maxDF[maxDF.columns[1]].tolist(),
+				'arrayminus' : minDF[minDF.columns[1]].tolist()
+			}
+		}
+
 class Graph:
 
 	def __init__(self, jsonObj):
@@ -210,6 +319,9 @@ class Graph:
 
 	def GetTitle(self):
 		return self.xLabel + ' VS. ' + self.yLabel + ' (' + self.comment + ')'
+
+	def GenImgFileName(self):
+		return (self.xLabel + ' VS ' + self.yLabel + ' (' + self.comment + ')').replace(' ', '_')
 
 	def GetMidDataTable(self, sqlEngine):
 		seriesDataFs = []
@@ -239,6 +351,18 @@ class Graph:
 	def TestPrint(self):
 		for item in self.series:
 			item.TestPrint()
+
+	def Plot(self, sqlEngine, outDirPath):
+
+		fig = go.Figure()
+		fig.update_layout(title=self.GetTitle(), yaxis={'title' : self.yLabel}, xaxis={'title' : self.xLabel, 'type' : self.type.plotyType})
+
+		for i in range(0, len(self.series)):
+			fig.add_trace(self.series[i].GetScatter(sqlEngine=sqlEngine, idx=i))
+
+		#fig.show()
+		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.svg'))
+		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.png'))
 
 class GraphDefinition:
 

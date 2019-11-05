@@ -6,8 +6,8 @@ import argparse
 import statistics
 import sqlalchemy
 
-import pandas as pd
-import progressbar as pbar
+import pandas as pd        # pip install pandas
+import progressbar as pbar # pip install progressbar2
 
 if __name__ == '__main__':
 	import ProgressBarConfig as pbarCfg
@@ -18,14 +18,14 @@ else:
 	from . import GraphDefinition
 	from . import ResProcConfigParser
 
-CSV_FILE_SUFFIX = '.csv'
+CSV_FILE_SUFFIX   = '.csv'
 EXCEL_FILE_SUFFIX = '.xlsx'
-EXCEL_MACRO_POSTFIX = '.xlsm'
+
 EXCEL_BUTTON_CFG = {'macro'  : 'DrawGraph',
                     'caption': 'Draw Graph',
                     'width'  : 120,
                     'height' : 20
-                    }
+                   }
 
 class MyMedian:
 
@@ -137,6 +137,10 @@ def SelectDataAndDrawGraphs(dirPath, cfgJson):
 	#Output to Excel file
 	excelOutPath = os.path.join(dirPath, 'data_for_graphs')
 	WriteExcel(excelOutPath, dataTable)
+
+	print('INFO:', 'Generating graphs...')
+	for graph in pbar.progressbar(graphDefs.graphs, **pbarCfg.PBAR_ARGS):
+		graph.Plot(sqlEngine, dirPath)
 
 def main():
 
