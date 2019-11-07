@@ -1,24 +1,31 @@
 import os
 import sys
 import time
+import json
 import argparse
 import statistics
 import sqlalchemy
-import GraphDefinition
-import pandas as pd
-import progressbar as pbar
-import ProgressBarConfig as pbarCfg
 
-DEFAULT_TABLE_NAME = 'FullTestResult'
+import pandas as pd        # pip install pandas
+import progressbar as pbar # pip install progressbar2
 
-CSV_POSTFIX = '.csv'
-EXCEL_POSTFIX = '.xlsx'
-EXCEL_MACRO_POSTFIX = '.xlsm'
+if __name__ == '__main__':
+	import ProgressBarConfig as pbarCfg
+	import GraphDefinition
+	import ResProcConfigParser
+else:
+	from . import ProgressBarConfig as pbarCfg
+	from . import GraphDefinition
+	from . import ResProcConfigParser
+
+CSV_FILE_SUFFIX   = '.csv'
+EXCEL_FILE_SUFFIX = '.xlsx'
+
 EXCEL_BUTTON_CFG = {'macro'  : 'DrawGraph',
                     'caption': 'Draw Graph',
                     'width'  : 120,
                     'height' : 20
-                    }
+                   }
 
 class MyMedian:
 
@@ -67,7 +74,7 @@ def ReadAllCsvFiles(dirPath):
 
 	print('INFO:', 'Reading all CSV files...')
 	for filename in pbar.progressbar(os.listdir(dirPath), **pbarCfg.PBAR_ARGS):
-		if filename.endswith(CSV_POSTFIX):
+		if filename.endswith(CSV_FILE_SUFFIX):
 			root, ext = os.path.splitext(filename)
 			dfWithNames.append((root, pd.read_csv(os.path.join(dirPath, filename))))
 
@@ -75,9 +82,9 @@ def ReadAllCsvFiles(dirPath):
 
 def WriteExcel(outPath, dataTable):
 
-	print('INFO:', 'Writting results into', outPath + EXCEL_POSTFIX, '...')
+	print('INFO:', 'Writting results into', outPath + EXCEL_FILE_SUFFIX, '...')
 
-	with pd.ExcelWriter(outPath + EXCEL_POSTFIX, engine='xlsxwriter') as writer:
+	with pd.ExcelWriter(outPath + EXCEL_FILE_SUFFIX, engine='xlsxwriter') as writer:
 		dataTable[0][1].to_excel(writer, sheet_name='Index')
 		i = 0
 		for item in pbar.progressbar(dataTable, **pbarCfg.PBAR_ARGS):
@@ -86,45 +93,27 @@ def WriteExcel(outPath, dataTable):
 
 			i += 1
 
-		if os.path.isfile('vbaProject.bin'):
-			print('INFO:', 'Writting macro-enables Excel file,', outPath + EXCEL_MACRO_POSTFIX, '...')
-			macroWorkBook = writer.book
-			macroWorkBook.filename = outPath + EXCEL_MACRO_POSTFIX
-			macroWorkBook.add_vba_project('vbaProject.bin')
-			for i, item in zip(range(0, len(dataTable)), dataTable):
-				if i == 0:
-					continue
+		#print('INFO:', 'Writting macro-enables Excel file,', outPath + EXCEL_MACRO_POSTFIX, '...')
+		macroWorkBook = writer.book
+		#macroWorkBook.filename = outPath + EXCEL_MACRO_POSTFIX
+		for i, item in zip(range(0, len(dataTable)), dataTable):
+			if i == 0:
+				continue
 
-				sheetName = 'Sheet_' + '{0:02d}'.format(i)
-				wSheet = macroWorkBook.get_worksheet_by_name(sheetName)
-				wSheet.insert_button(item[1].shape[0] + 2, 0, EXCEL_BUTTON_CFG)
+			sheetName = 'Sheet_' + '{0:02d}'.format(i)
+			wSheet = macroWorkBook.get_worksheet_by_name(sheetName)
+			wSheet.insert_button(item[1].shape[0] + 2, 0, EXCEL_BUTTON_CFG)
 
-			writer.save()
+		writer.save()
 
-def main():
-
-	print()
-
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--dir', required=True, type=str)
-	parser.add_argument('--graphDef', required=True, type=str)
-
-	args = parser.parse_args()
+def SelectDataAndDrawGraphs(dirPath, cfgJson):
 
 	#Convert paths to absolute path
 	#    Directory path
-	dirPath = os.path.abspath(args.dir)
+	dirPath = os.path.abspath(dirPath)
 
 	if (not os.path.exists(dirPath)) or (os.path.isfile(dirPath)):
-		print('FATAL_ERR:', 'The input directory:', dirPath, 'does not exist, or it is a file!')
-		exit(-1)
-
-	#    Graph Definition path
-	graphDefPath = os.path.abspath(args.graphDef)
-
-	if not os.path.isfile(args.graphDef):
-		print('FATAL_ERR:', 'The graph definition file,', args.graphDef, 'does not exist!')
-		exit(-1)
+		raise RuntimeError('The given directory:' + dirPath + 'does not exist, or it is a file!')
 
 	#Create an in-memory SQLite database.
 	sqlEngine = sqlalchemy.create_engine('sqlite://', echo=False)
@@ -134,7 +123,7 @@ def main():
 	dfWithNames = ReadAllCsvFiles(dirPath)
 
 	#Parse graph definition
-	graphDefs = GraphDefinition.GraphDefinition(jsonStr=GetStrFromFile(graphDefPath))
+	graphDefs = GraphDefinition.GraphDefinition(jsonObj=cfgJson)
 
 	#Load SQL database
 	print('INFO:', 'Loading tables into SQL database...')
@@ -148,6 +137,31 @@ def main():
 	#Output to Excel file
 	excelOutPath = os.path.join(dirPath, 'data_for_graphs')
 	WriteExcel(excelOutPath, dataTable)
+
+	print('INFO:', 'Generating graphs...')
+	for graph in pbar.progressbar(graphDefs.graphs, **pbarCfg.PBAR_ARGS):
+		graph.Plot(sqlEngine, dirPath)
+
+def main():
+
+	print()
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--dir', required=True, type=str)
+	parser.add_argument('--config', required=True, type=str)
+
+	args = parser.parse_args()
+
+	# Graph Definition path
+	graphDefPath = os.path.abspath(args.graphDef)
+
+	if not os.path.isfile(args.graphDef):
+		print('FATAL_ERR:', 'The graph definition file,', args.graphDef, 'does not exist!')
+		exit(-1)
+
+	cfgJson = json.loads(GetFullStrFromFile(graphDefPath))
+
+	SelectDataAndDrawGraphs(args.dir, cfgJson)
 
 	print()
 
