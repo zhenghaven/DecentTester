@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <memory>
 #include <string>
 
@@ -30,7 +31,7 @@ namespace Decent
 
 			virtual ~DhtClientApp();
 
-			void Init(std::shared_ptr<ConnectionPool> cntPool, const Ra::WhiteList::StaticList& loadedWhiteList, int64_t maxOpPerTicket);
+			void Init(std::shared_ptr<ConnectionPool> cntPool, const Ra::WhiteList::StaticList& loadedWhiteList, int64_t maxOpPerTicket, const std::vector<uint64_t>& knownAddr);
 
 			virtual void Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string& key, const std::string& val);
 

@@ -2,6 +2,7 @@
 
 #include<mutex>
 #include<map>
+#include<vector>
 
 #include <DecentApi/Common/Tools/SharedCachingQueue.h>
 #include <DecentApi/Common/Net/SecureConnectionPoolBase.h>
@@ -38,7 +39,7 @@ namespace Decent
 			 *
 			 * \param	opCountMax	The operation count maximum.
 			 */
-			void InitOpCountMax(int64_t opCountMax);
+			void InitOpCountMax(int64_t opCountMax, const std::vector<uint64_t>& knownAddr);
 
 			virtual Net::CntPair GetNew(void* cntPoolPtr, const uint64_t& addr, States& state);
 

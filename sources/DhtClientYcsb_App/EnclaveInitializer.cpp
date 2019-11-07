@@ -98,7 +98,7 @@ JNIEXPORT DhtClientAppPkg* JNICALL DhtClient::GetNewDhtClientAppPkg(size_t cntPo
 	res->m_cntPool = std::make_shared<ConnectionPool>(0, cntPoolSize, GetConfigManager().GetEnclaveList());
 	res->m_app = Tools::make_unique<DhtClientApp>(ENCLAVE_FILENAME, tokenPath, gsk_whiteListKey, *GetDecentServerConnection());
 
-	res->m_app->Init(maxOpPerTicket);
+	res->m_app->Init(maxOpPerTicket, res->m_cntPool->GetKnownNodeAddr());
 
 	return res;
 }

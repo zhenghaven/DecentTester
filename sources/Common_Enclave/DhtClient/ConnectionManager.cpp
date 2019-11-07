@@ -77,12 +77,18 @@ ConnectionManager::~ConnectionManager()
 {
 }
 
-void ConnectionManager::InitOpCountMax(int64_t opCountMax)
+void ConnectionManager::InitOpCountMax(int64_t opCountMax, const std::vector<uint64_t>& knownAddr)
 {
 	m_opCountMax = opCountMax;
 	m_opCount = opCountMax > 0 ? GenRandomInitCount(static_cast<uint64_t>(opCountMax)) : 0;
 
-	PRINT_I("Max Operation Count is: %llu.", opCountMax);
+	m_idvOpCount.clear();
+	for (auto addr : knownAddr)
+	{
+		m_idvOpCount.insert(std::make_pair(addr, GenRandomInitCount(static_cast<uint64_t>(m_opCountMax))));
+	}
+
+	PRINT_I("Max Operation Count is: %lld.", opCountMax);
 }
 
 void ConnectionManager::CheckOpCount(const uint64_t addr)
@@ -91,7 +97,7 @@ void ConnectionManager::CheckOpCount(const uint64_t addr)
 
 	if (m_opCountMax > 0)
 	{
-		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
+		//std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
 
 		m_opCount++;
 		if (m_opCount >= static_cast<uint64_t>(m_opCountMax))
@@ -105,20 +111,12 @@ void ConnectionManager::CheckOpCount(const uint64_t addr)
 
 	if (m_opCountMax > 0)
 	{
-		std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
+		//std::unique_lock<std::mutex> opCountLock(m_opCountMutex);
 
 		auto it = m_idvOpCount.find(addr);
 		if (it == m_idvOpCount.end())
 		{
-			//This address is new, init one
-			auto insertRes = m_idvOpCount.insert(std::make_pair(addr, GenRandomInitCount(static_cast<uint64_t>(m_opCountMax))));
-
-			if (!insertRes.second)
-			{
-				throw RuntimeException("Failed to insert op count.");
-			}
-
-			it = insertRes.first;
+			throw RuntimeException("The op count for the given address has not been initiated.");
 		}
 
 		auto& opCount = it->second;
