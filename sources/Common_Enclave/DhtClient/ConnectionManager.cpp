@@ -40,15 +40,12 @@ namespace
 
 	static uint64_t GenRandomInitCount(uint64_t max)
 	{
-		static MbedTlsObj::DrbgRandGenerator<uint32_t> gen; //uint32_t generator will cause warning.
-		static std::uniform_int_distribution<uint64_t> dist(0, max);
-		static std::mutex mutex;
+		MbedTlsObj::DrbgRandGenerator<uint32_t> gen; //uint32_t generator will cause warning.
+		std::uniform_int_distribution<uint64_t> dist(0, max);
+		//std::mutex mutex;
 
-		uint64_t res = 0;
-		{
-			std::unique_lock<std::mutex> lock(mutex);
-			res = dist(gen);
-		}
+		//std::unique_lock<std::mutex> lock(mutex);
+		uint64_t res = dist(gen);
 
 		return res;
 	}

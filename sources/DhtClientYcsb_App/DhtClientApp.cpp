@@ -56,7 +56,7 @@ void DhtClientApp::Init(int64_t maxOpPerTicket, const std::vector<uint64_t>& kno
 	int enclaveRet = true;
 
 #ifdef DECENT_DHT_NAIVE_RA_VER
-	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, m_ias.get(), &spid, GetEnclaveId(), maxOpPerTicket);
+	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, m_ias.get(), &spid, GetEnclaveId(), maxOpPerTicket, knownAddr.data(), knownAddr.size());
 #else
 	DECENT_CHECK_SGX_FUNC_CALL_ERROR(ecall_dht_client_init, GetEnclaveId(), &enclaveRet, nullptr, &spid, GetEnclaveId(), maxOpPerTicket, knownAddr.data(), knownAddr.size());
 #endif // DECENT_DHT_NAIVE_RA_VER
