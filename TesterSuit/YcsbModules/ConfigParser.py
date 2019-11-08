@@ -8,7 +8,7 @@ def GetFullStrFromFile(filename):
 	file.close()
 	return res
 
-def ParseConfig(plainPath, cfgSuffix = '.resproc.json'):
+def ParseConfig(plainPath, cfgSuffix = 'ycsb.resproc.json'):
 
 	absPath = os.path.abspath(plainPath)
 

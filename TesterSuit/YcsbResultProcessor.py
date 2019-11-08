@@ -4,11 +4,11 @@ import argparse
 
 # import submodules:
 if __name__ == '__main__':
-	from YcsbModules import ResProcConfigParser
+	from YcsbModules import ConfigParser
 	from YcsbModules import ProcRawData
 	from YcsbModules import GenTableAndPlotFromResult
 else:
-	from .YcsbModules import ResProcConfigParser
+	from .YcsbModules import ConfigParser
 	from .YcsbModules import ProcRawData
 	from .YcsbModules import GenTableAndPlotFromResult
 
@@ -74,7 +74,7 @@ def Process(configPath, minPhaseIdx):
 	if not (DEFAULT_MIN_PHASE_IDX <= minPhaseIdx and minPhaseIdx < DEFAULT_MAX_PHASE_IDX):
 		raise RuntimeError('Given start phase out of range.')
 
-	cfg, absOutputDir = ResProcConfigParser.ParseConfig(configPath)
+	cfg, absOutputDir = ConfigParser.ParseConfig(configPath)
 
 	for phaseIdx in range(minPhaseIdx, DEFAULT_MAX_PHASE_IDX):
 		pxCfg = cfg[PROCESS_PHASE_CONFIG_KEY[phaseIdx]]

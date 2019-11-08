@@ -5,8 +5,25 @@ import socket
 import psutil
 import argparse
 import subprocess
-import SocketTools as st
-import procConfigureTools as pct
+
+# import submodules:
+if __name__ == '__main__':
+	from YcsbModules import ConfigParser
+	from YcsbModules import SocketTools as st
+	from YcsbModules import procConfigureTools as pct
+else:
+	from .YcsbModules import ConfigParser
+	from .YcsbModules import SocketTools as st
+	from .YcsbModules import procConfigureTools as pct
+
+SELECTED_PRIORITY_LEVELS = {
+	'RealTime' : psutil.REALTIME_PRIORITY_CLASS,
+	'AboveNormal' : psutil.ABOVE_NORMAL_PRIORITY_CLASS,
+	'BelowNormal' : psutil.BELOW_NORMAL_PRIORITY_CLASS,
+	'High' : psutil.HIGH_PRIORITY_CLASS,
+	'Idle' : psutil.IDLE_PRIORITY_CLASS,
+	'Normal' : psutil.NORMAL_PRIORITY_CLASS
+}
 
 def ConfigSysProc(svcBinNameList, svcAffList, svcPriority):
 
@@ -178,12 +195,19 @@ def GetClientsStartEndRound(connArr, pList, targetAffList, svcAffList):
 
 	return True
 
-def RunOneTestCase(connArr, targetBin, targetAffFullList, targetPriority, targetPortStart, svcBinNameList, svcAffFullList, svcPriority):
+def RunOneTestCase(connArr, targetBin, targetAffFullList, targetPriority, targetPortStart, svcBinNameList, svcAffFullList, svcAffMode, svcPriority):
 
 	#Recv num of server nodes to spawn
 	numOfNode = RecvNumOfNode(connArr[0], len(targetAffFullList))
 
-	svcAffList = svcAffFullList[:numOfNode]
+	svcAffList = None
+	if svcAffMode == 'ByNodeNum':
+		svcAffList = svcAffFullList[:numOfNode]
+	elif svcAffMode == 'All':
+		svcAffList = svcAffFullList
+	else:
+		raise RuntimeError('Invalid Server System Services CPU Affinity List Mode (given='+ str(svcAffMode) +').')
+
 	targetAffList = targetAffFullList[:numOfNode]
 	ConfigSysProc(svcBinNameList, svcAffList, svcPriority)
 
@@ -214,38 +238,58 @@ def RunOneTestCase(connArr, targetBin, targetAffFullList, targetPriority, target
 	finally:
 		KillTestProgram(procObjs)
 
-def ListenToClients(connArr, targetBin, targetAffFullList, targetPriority, targetPortStart, svcBinNameList, svcAffFullList, svcPriority):
+def ListenToClients(connArr, targetBin, targetAffFullList, targetPriority, targetPortStart, svcBinNameList, svcAffFullList, svcAffMode, svcPriority):
 
 	clientSignal = st.SocketRecvPack(connArr[0])
 
 	while clientSignal == 'Test':
-		RunOneTestCase(connArr, targetBin, targetAffFullList, targetPriority, targetPortStart, svcBinNameList, svcAffFullList, svcPriority)
+		RunOneTestCase(connArr, targetBin, targetAffFullList, targetPriority, targetPortStart, svcBinNameList, svcAffFullList, svcAffMode, svcPriority)
 		clientSignal = st.SocketRecvPack(connArr[0])
 
-TEST_TARGET_BINARY = 'DecentDht_App'
-TEST_TARGET_AFINITY_LIST = [[1], [3], [5], [7], [9], [11], [13], [15]]
-TEST_TARGET_PRIORITY = psutil.REALTIME_PRIORITY_CLASS
-TEST_TARGET_PORT_START = 57756
+def StartTestsByConfig(configPath, startIdx):
 
-SYS_SVC_AESM_NAME = 'aesm_service'
-SYS_SVC_WIN_NET_NAME = 'WmiPrvSE'
-SYS_SVC_PYTHON_NAME = 'python'
-SYS_SVC_AFINITY_LIST = [0, 2, 4, 6, 8, 10, 12, 14]
-SYS_SVC_DEFAULT_PRIORITY = psutil.HIGH_PRIORITY_CLASS
+	cfg, absOutputDir = ConfigParser.ParseConfig(configPath, 'ycsb.test.json')
+	currWorkDir = os.getcwd()
 
-TESTER_SERVER_ADDR = ''
-TESTER_SERVER_PORT = 57725
+	try:
+
+		for testCfg in cfg['Tests'][startIdx:]:
+
+			testWorkDir = testCfg['WorkDirectory']
+			if os.path.isabs(testCfg['WorkDirectory']) and os.path.exists(testCfg['WorkDirectory']):
+				testWorkDir = testCfg['WorkDirectory']
+			elif not os.path.isabs(testCfg['WorkDirectory']) and os.path.exists(os.path.join(absOutputDir, testCfg['WorkDirectory'])):
+				testWorkDir = os.path.join(absOutputDir, testCfg['WorkDirectory'])
+			else:
+				raise RuntimeError('Given test working directory is invalid.')
+
+			os.chdir(testWorkDir)
+			print('INFO:', 'Working directory switched to:', testWorkDir)
+
+			svr = SetupTestServer(testCfg['TesterSvrAddr'], testCfg['TesterSvrPort'])
+
+			connArr = AcceptTestClients(svr)
+
+			ListenToClients(connArr,
+			                testCfg['TargetBin'], testCfg['TargetAffinity'], SELECTED_PRIORITY_LEVELS[testCfg['TargetPriority']], testCfg['TargetPortStart'],
+			                testCfg['SysSvcBinList'], testCfg['SysSvcAffinity'], testCfg['SysSvcAffinityMode'], SELECTED_PRIORITY_LEVELS[testCfg['SysSvcPriority']]
+			)
+
+	finally:
+		os.chdir(currWorkDir)
+
+	print('INFO:', 'Tests are finished!')
 
 def main():
 
-	svr = SetupTestServer(TESTER_SERVER_ADDR, TESTER_SERVER_PORT)
+	parser = argparse.ArgumentParser()
 
-	connArr = AcceptTestClients(svr)
+	parser.add_argument('--config', type=str, required=True)
+	parser.add_argument('--startIdx', type=int, required=False, default=1)
 
-	ListenToClients(connArr, TEST_TARGET_BINARY, TEST_TARGET_AFINITY_LIST, TEST_TARGET_PRIORITY, TEST_TARGET_PORT_START
-		            [SYS_SVC_AESM_NAME, SYS_SVC_WIN_NET_NAME, SYS_SVC_PYTHON_NAME], SYS_SVC_AFINITY_LIST, SYS_SVC_DEFAULT_PRIORITY)
+	args = parser.parse_args()
 
-	print('INFO:', 'Tests are finished!')
+	StartTestsByConfig(args.config, args.startIdx - 1)
 
 if __name__ == '__main__':
 	sys.exit(main())
