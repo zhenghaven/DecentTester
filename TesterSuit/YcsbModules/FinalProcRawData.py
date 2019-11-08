@@ -44,7 +44,7 @@ def GetTimestampRange(dataF, tsColName):
 
 def GetIdResult(idPair, idDef):
 
-	idComponentsList = [['999999999' if w == '-1' else w for w in id.split('_')] for id in idPair]
+	idComponentsList = [['999999999999' if w == '-1' else w for w in id.split('_')] for id in idPair]
 
 	return [idComponentsList[0][i] if idDef[i] is None else \
 	            ID_COMPONENT_CACL_FUNC[idDef[i][1]]([idComponents[i] for idComponents in idComponentsList]) \

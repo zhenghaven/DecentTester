@@ -2,7 +2,7 @@ import os
 import json
 import enum
 import pandas as pd               # pip install pandas
-import plotly.graph_objects as go # pip install plotly==4.2.1
+import plotly.graph_objects as go # pip install plotly==4.2.1 requests && npm install -g electron@1.8.4 orca
 
 PLOTY_MARKER_SELECTED_SYMBOLS = [
 	'circle',			'square',			'diamond',			'cross',			'x',
@@ -355,7 +355,7 @@ class Graph:
 	def Plot(self, sqlEngine, outDirPath):
 
 		fig = go.Figure()
-		fig.update_layout(title=self.GetTitle(), yaxis={'title' : self.yLabel}, xaxis={'title' : self.xLabel, 'type' : self.type.plotyType})
+		fig.update_layout(title=self.GetTitle(), yaxis={'title' : self.yLabel}, xaxis={'title' : self.xLabel, 'type' : self.type.plotyType}, width=1000, height=450)
 
 		for i in range(0, len(self.series)):
 			fig.add_trace(self.series[i].GetScatter(sqlEngine=sqlEngine, idx=i))

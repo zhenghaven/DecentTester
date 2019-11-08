@@ -9,7 +9,7 @@ def SaveOneParsedTable(destDict, label, srcIo):
 			raise RuntimeError('The given operation label, ' + label + ', already exist!')
 		# prev table not empty
 		srcIo.seek(0)
-		destDict[label] = pd.read_csv(srcIo)
+		destDict[label] = pd.read_csv(srcIo, low_memory = False)
 
 def ParseYcsbCsv(csvFile, tsColName, isFailAllowed):
 

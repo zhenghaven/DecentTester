@@ -4,9 +4,9 @@ import time
 import json
 import argparse
 import statistics
-import sqlalchemy
+import sqlalchemy          # pip install sqlalchemy
 
-import pandas as pd        # pip install pandas
+import pandas as pd        # pip install pandas xlsxwriter
 import progressbar as pbar # pip install progressbar2
 
 if __name__ == '__main__':

@@ -22,7 +22,7 @@ YCSB_COL_NAME_LATENCY   = 'latency(us)'
 
 CSV_FILE_SUFFIX = '.csv'
 
-NUMBER_OF_THREADS = 16
+NUMBER_OF_THREADS = 32
 
 ID_COMPONENT_REPLACE_FUNC = { \
 	'*' : lambda s : '*' \
@@ -215,12 +215,12 @@ class RawDataProcessor:
 				if item.IsFinished():
 					try:
 						resRows.append(item.JoinAndGetResult())
+						progBar.update(len(resRows))
 					except Exception as e:
 						print('FATAL_ERROR:', 'Exception raised.')
 						resRows.append(None)
 						error = e if error is None else error
 					parThreadList.remove(item)
-					progBar.update(len(resRows))
 
 		if error is not None:
 			raise error
