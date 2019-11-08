@@ -31,7 +31,7 @@ namespace Decent
 
 			virtual ~DhtClientApp();
 
-			void Init(int64_t maxOpPerTicket);
+			void Init(int64_t maxOpPerTicket, const std::vector<uint64_t>& knownAddr);
 
 			virtual void Insert(std::shared_ptr<ConnectionPool> cntPool, const std::string& key, const std::string& val);
 

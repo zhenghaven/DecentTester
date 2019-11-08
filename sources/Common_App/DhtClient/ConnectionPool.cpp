@@ -67,3 +67,8 @@ std::shared_ptr<ConnectionPool> ConnectionPool::GetSharedPtr()
 {
 	return shared_from_this();
 }
+
+const std::vector<uint64_t>& ConnectionPool::GetKnownNodeAddr() const
+{
+	return m_knownNodeAddr;
+}

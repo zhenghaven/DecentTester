@@ -28,6 +28,8 @@ namespace Decent
 
 			std::shared_ptr<ConnectionPool> GetSharedPtr();
 
+			const std::vector<uint64_t>& GetKnownNodeAddr() const;
+
 		private:
 			std::random_device m_rd;
 			std::mt19937 m_randGen;

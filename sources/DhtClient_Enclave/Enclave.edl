@@ -19,7 +19,7 @@ enclave
 
 	trusted
 	{
-		public int ecall_dht_client_init([user_check] void* ias_cntor, [in] const sgx_spid_t* spid, uint64_t enclave_Id, int64_t max_op_per_ticket);
+		public int ecall_dht_client_init([user_check] void* ias_cntor, [in] const sgx_spid_t* spid, uint64_t enclave_Id, int64_t max_op_per_ticket, [in, count=known_addr_size] const uint64_t* known_addr, size_t known_addr_size);
 		
 		public int ecall_dht_client_insert([user_check] void* cnt_pool_ptr, [in, size=key_size] const void* key_buf, size_t key_size, [in, size=val_size] const void* val_buf, size_t val_size);
 		public int ecall_dht_client_update([user_check] void* cnt_pool_ptr, [in, size=key_size] const void* key_buf, size_t key_size, [in, size=val_size] const void* val_buf, size_t val_size);

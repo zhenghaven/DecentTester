@@ -56,11 +56,11 @@ DhtClientApp::~DhtClientApp()
 {
 }
 
-void DhtClientApp::Init(std::shared_ptr<ConnectionPool> cntPool, const Decent::Ra::WhiteList::StaticList& loadedWhiteList, int64_t maxOpPerTicket)
+void DhtClientApp::Init(std::shared_ptr<ConnectionPool> cntPool, const Decent::Ra::WhiteList::StaticList& loadedWhiteList, int64_t maxOpPerTicket, const std::vector<uint64_t>& knownAddr)
 {
 	Decent::Ra::WhiteList::LoadedList tmpLoadedWhiteList(loadedWhiteList.GetMap());
 	GetLoadedWhiteListImpl(&tmpLoadedWhiteList);
-	m_connectionMgr->InitOpCountMax(maxOpPerTicket);
+	m_connectionMgr->InitOpCountMax(maxOpPerTicket, knownAddr);
 
 	int enclaveRet = ecall_dht_client_init(cntPool.get(), m_states.get());
 
