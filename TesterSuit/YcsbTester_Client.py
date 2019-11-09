@@ -3,54 +3,25 @@ import sys
 import time
 import json
 import socket
-import psutil
 import datetime
 import argparse
 import subprocess
-import SocketTools as st
 
-DEFAULT_PRIORITY = psutil.REALTIME_PRIORITY_CLASS
+# import submodules:
+if __name__ == '__main__':
+	from YcsbModules import ConfigParser
+	from YcsbModules import SocketTools as st
+	from YcsbModules import procConfigureTools as pct
+else:
+	from .YcsbModules import ConfigParser
+	from .YcsbModules import SocketTools as st
+	from .YcsbModules import procConfigureTools as pct
 
-CLIENT_BINDING_NAME = 'decentdht'
-
-TEST_SERVER_ADDR = '127.0.0.1'
-TEST_SERVER_PORT = 57725
-
-DHT_SERVER_PORT_BEGIN = 57756
-
-THREAD_COUNT_LIST = [40]
-
-MAX_OP_PER_TICKET_LIST = [500, 1000]
-
-TARGET_THROUGHPUT_LIST = [-1]
-
-BENCHMARKS_HOME_PATH = '.'
-
-def GetBuildDirPath():
-
-	return os.path.join(os.path.dirname(BENCHMARKS_HOME_PATH), 'build')
-
-def GetYcsbHomePath():
-
-	return os.path.join(BENCHMARKS_HOME_PATH, 'YCSB')
-
-def GetYcsbBinPath():
-
-	return os.path.join(GetYcsbHomePath(), 'bin', 'ycsb')
+TCP_CONNECT_RETRY_TIME_LIST = [2, 4, 8, 16, 20]
 
 def GetConfigFilePath():
 
-	return os.path.join(GetBuildDirPath(), 'Config.json')
-
-def SetupDirPath():
-
-	global BENCHMARKS_HOME_PATH
-	BENCHMARKS_HOME_PATH = os.getcwd()
-	os.chdir(GetBuildDirPath())
-
-	print('INFO:', 'YCSB\'s Home Path is:', GetYcsbHomePath())
-	print('INFO:', 'Libraries Path is:', GetBuildDirPath())
-	print('INFO:', 'Current Working Directory is:', os.getcwd())
+	return os.path.join(os.path.abspath('.'), 'Config.json')
 
 def WaitFor(sec):
 
@@ -87,11 +58,11 @@ def WriteJsonToFile(filename, jsonObj):
 
 	WriteStrToFile(filename, json.dumps(jsonObj, indent='\t'))
 
-def UpdateClientConfig(numOfNode):
+def UpdateClientConfig(numOfNode, svrPortBegin):
 
 	jsonObj = GetJsonFromFile(GetConfigFilePath())
 
-	jsonObj['Enclaves']['DecentDHT']['Port'] = DHT_SERVER_PORT_BEGIN + (numOfNode - 1)
+	jsonObj['Enclaves']['DecentDHT']['Port'] = svrPortBegin + (numOfNode - 1)
 
 	WriteJsonToFile(GetConfigFilePath(), jsonObj)
 
@@ -99,12 +70,10 @@ def SetJavaSysProperty(maxOpPerTicket):
 
 	os.environ['JAVA_OPTS'] = '-DDecent.maxOpPerTicket="' + str(maxOpPerTicket) + '"'
 
-def GetOutputDirPath(workload, dist, recCount, maxTime):
+def GetOutputDirPath(absOutputDirPath, bindingName, workload, dist, recCount, maxTime, hostName):
 
-	dirPath = os.path.join(BENCHMARKS_HOME_PATH, 'results')
-
-	subPath = 'Transactions_' + CLIENT_BINDING_NAME + '_' + datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-	dirPath = os.path.join(dirPath, subPath)
+	subPath = 'Transactions_' + bindingName + '_' + datetime.datetime.now().strftime('%Y%m%d%H%M%S') + '_' + hostName
+	dirPath = os.path.join(absOutputDirPath, subPath)
 
 	subPath = workload + '_' + dist + '_' + str(recCount) + '_' + str(maxTime)
 	dirPath = os.path.join(dirPath, subPath)
@@ -117,24 +86,15 @@ def CreateDirs(dirPath):
 		print('INFO:', 'Creating directories with path:', dirPath, '...')
 		os.makedirs(dirPath)
 
-def FindProcsByName(name):
-
-	ls = []
-
-	for p in psutil.process_iter(attrs=['name']):
-		if p.info['name'].startswith(name):
-			ls.append(p)
-	return ls
-
-def ExecuteYcsbTestCommand(command):
+def ExecuteYcsbTestCommand(command, procPriority):
 
 	#print('INFO:', 'Executed command:', ' '.join(command))
 	procObj = subprocess.Popen(command)# , creationflags=subprocess.CREATE_NEW_CONSOLE
 
 	#Sets priority of the JVM:
 	WaitFor(0.2)
-	for p in FindProcsByName('java'):
-		p.nice(DEFAULT_PRIORITY)
+	for p in pct.FindProcsByName('java'):
+		p.nice(procPriority)
 
 	print('INFO:', 'Executed command:', ' '.join(procObj.args))
 	print('INFO:', 'Waiting for process to be done...')
@@ -149,7 +109,7 @@ def GetYcsbWorkloadPath(filename):
 
 	return os.path.join(GetYcsbHomePath(), 'workloads', filename)
 
-def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket):
+def LoadDatabase(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket):
 
 	print('INFO:', 'Loading the database...')
 
@@ -170,12 +130,15 @@ def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNod
 
 	#Construct command
 	options = []
+	options += ['-P', GetYcsbWorkloadPath(workload)]
+	options += ['-threads', str(threadCount)]
+
 	options += ['-p', ('recordcount=' + str(recCount * numOfNode))]
 	options += ['-p', ('requestdistribution=' + dist)]
 	options += ['-p', ('measurementtype=' + 'raw')]
 	options += ['-p', ('measurement.raw.output_file=' + outRawPath)]
 
-	command = ['cmd.exe', '/c', ycsbPath, 'load', CLIENT_BINDING_NAME, '-P', GetYcsbWorkloadPath(workload), '-threads', str(threadCount)]
+	command = ['cmd.exe', '/c', ycsbPath, 'load', bindingName]
 	command += options
 	command += ['>', outRepPath]
 
@@ -185,14 +148,14 @@ def LoadDatabase(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNod
 	st.SocketSendPack(conn, 'Start')
 	if st.SocketRecvPack(conn) != 'Proceed':
 		raise RuntimeError('Server respond error.')
-	ExecuteYcsbTestCommand(command)
+	ExecuteYcsbTestCommand(command, procPriority)
 	st.SocketSendPack(conn, 'End')
 
 	WriteStrToFile(outSvrStatPath, st.SocketRecvPack(conn))
 
 	WaitFor(5)
 
-def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp):
+def RunTest(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp):
 
 	print('INFO:', 'Running the test...')
 
@@ -224,7 +187,7 @@ def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, ma
 	options += ['-p', ('measurementtype=' + 'raw')]
 	options += ['-p', ('measurement.raw.output_file=' + outRawPath)]
 
-	command = ['cmd.exe', '/c', ycsbPath, 'run', CLIENT_BINDING_NAME]
+	command = ['cmd.exe', '/c', ycsbPath, 'run', bindingName]
 	command += options
 	command += ['>', outRepPath]
 
@@ -234,7 +197,7 @@ def RunTest(conn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, ma
 	st.SocketSendPack(conn, 'Start')
 	if st.SocketRecvPack(conn) != 'Proceed':
 		raise RuntimeError('Server respond error.')
-	ExecuteYcsbTestCommand(command)
+	ExecuteYcsbTestCommand(command, procPriority)
 	st.SocketSendPack(conn, 'End')
 
 	WriteStrToFile(outSvrStatPath, st.SocketRecvPack(conn))
@@ -248,22 +211,22 @@ def SendNumOfNode(conn, numOfNode):
 	if st.SocketRecvPack(conn) != 'OK':
 		raise RuntimeError('Server doesn\'t accept the numOfNode=' + numOfNode + ' !')
 
-def RunOneTypeNodeSetup(serverConn, isMaster, ycsbPath, outDir, workload, dist, recCount, numOfNode, maxOp, maxTime, attemptNum):
+def RunOneTypeNodeSetup(conn, svrPortBegin, isMaster, ycsbPath, bindingName, procPriority, outDir, attemptNum, numOfNode, workload, dist, recCount, maxOp, maxTime, threadCountList, opPerSessList, targetThrpList):
 
-	UpdateClientConfig(numOfNode)
+	UpdateClientConfig(numOfNode, svrPortBegin)
 
 	#----- Setup server nodes
 	if isMaster:
 		#Tell server we have test to perform
-		st.SocketSendPack(serverConn, 'Test')
+		st.SocketSendPack(conn, 'Test')
 
 		#Tell server how many node we need
 		print('INFO:', 'Telling server how many node we need...')
-		SendNumOfNode(serverConn, numOfNode)
+		SendNumOfNode(conn, numOfNode)
 
 	#----- Wait for server to complete the setup process
 	print('INFO:', 'Waiting for server to complete the setup process...')
-	clientSignal = st.SocketRecvPack(serverConn)
+	clientSignal = st.SocketRecvPack(conn)
 	if clientSignal != 'R':
 		raise RuntimeError('Server error during setup process.')
 
@@ -271,12 +234,12 @@ def RunOneTypeNodeSetup(serverConn, isMaster, ycsbPath, outDir, workload, dist, 
 	print('INFO:', 'Loading database...')
 	if isMaster:
 		CreateDirs(os.path.join(outDir, 'load'))
-		loadThreadCount = THREAD_COUNT_LIST[len(THREAD_COUNT_LIST) - 1]
-		loadMaxOpPerTicket = MAX_OP_PER_TICKET_LIST[len(MAX_OP_PER_TICKET_LIST) - 1]
+		loadThreadCount = threadCountList[len(threadCountList) - 1]
+		loadMaxOpPerTicket = opPerSessList[len(opPerSessList) - 1]
 
 		outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket) + '_-1'
 		loadOutPathBase = os.path.join(outDir, 'load', outPathBase)
-		LoadDatabase(serverConn, ycsbPath, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
+		LoadDatabase(conn, ycsbPath, bindingName, procPriority, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
 	else:
 		st.SocketSendPack(conn, 'Start')
 		if st.SocketRecvPack(conn) != 'Proceed':
@@ -286,85 +249,110 @@ def RunOneTypeNodeSetup(serverConn, isMaster, ycsbPath, outDir, workload, dist, 
 
 	#----- Run transactions:
 	print('INFO:', 'Begin testing...')
-	for threadCount in THREAD_COUNT_LIST:
-		for maxOpPerTicket in MAX_OP_PER_TICKET_LIST:
-			for targetThrp in TARGET_THROUGHPUT_LIST:
+	for threadCount in threadCountList:
+		for maxOpPerTicket in opPerSessList:
+			for targetThrp in targetThrpList:
 				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) \
 							+ '_' + str(maxOpPerTicket) + '_' + str(targetThrp)
 				outPathBase = os.path.join(outDir, outPathBase)
-				RunTest(serverConn, ycsbPath, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
+				RunTest(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
 
 	if isMaster:
-		st.SocketSendPack(serverConn, 'Finished')
+		st.SocketSendPack(conn, 'Finished')
 
 	print('INFO:', 'Finished test with', numOfNode ,'nodes.')
 
-def GetServerConnection(totalClient, clientI):
+def GetServerConnection(svrAddr, svrPort, totalClient, clientI, retryTimeList):
 
 	conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	conn.connect((TEST_SERVER_ADDR, TEST_SERVER_PORT))
+	isConnected = False
+	retryCount = 0
+
+	while isConnected is False:
+		try:
+			conn.connect((svrAddr, svrPort))
+			isConnected = True
+		except Exception:
+			print('Failed to connect to the Tester Server.', 'Retry later...')
+			waitTime = retryTimeList[retryCount if retryCount < len(retryTimeList) else len(retryTimeList) - 1]
+			if waitTime < 0:
+				raise
+			else:
+				WaitFor(waitTime)
+			retryCount = retryCount + 1
 
 	st.SocketSend_uint64(conn, totalClient)
 	st.SocketSend_uint64(conn, clientI)
 
 	return conn
 
-def SetYcsbHomeEnvVar():
-
-	ycsbHome = GetYcsbHomePath()
+def SetYcsbHomeEnvVar(ycsbHome):
 
 	if not os.path.exists(ycsbHome):
 		raise FileNotFoundError('Could not find YCSB\'s home directory!')
 
 	os.environ['YCSB_HOME'] = ycsbHome
 
-def main():
+def GetAbsPathInConfig(cfg, key, cfgParentAbsPath):
 
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--workload', required=True)
-	parser.add_argument('--dist', required=True)
-	parser.add_argument('--recN', type=int, required=True)
-	parser.add_argument('--maxOp', type=int, required=True)
-	parser.add_argument('--maxTime', type=int, required=True)
-	parser.add_argument('--attemptN', type=int, required=True)
-	parser.add_argument('--minNode', type=int, required=False)
-	parser.add_argument('--maxNode', type=int, required=True)
-	parser.add_argument('--totalClient', type=int, required=True)
-	parser.add_argument('--clientI', type=int, require=True)
+	absPath = cfg[key]
+	if os.path.isabs(absPath) and os.path.exists(absPath):
+		return absPath
+	elif os.path.exists(os.path.join(cfgParentAbsPath, absPath)):
+		return os.path.join(cfgParentAbsPath, absPath)
+	else:
+		raise RuntimeError('The given path to the ' + key + ' is invalid (path='+ absPath +').')
 
-	args = parser.parse_args()
+def StartOneTestsByConfig(testCfg, cfgParentAbsPath, hostName):
 
-	if (args.minNode != None and args.maxNode != None) and (args.minNode > args.maxNode):
-		print('FATAL_ERR:', 'minNode should not be larger than maxNode!')
-		exit(-1)
+	#===== Setup work directory
+	testWorkDir = GetAbsPathInConfig(testCfg, 'WorkDirectory', cfgParentAbsPath)
+	os.chdir(testWorkDir)
+	print('INFO:', 'Working directory switched to:', testWorkDir)
 
-	if (args.minNode != None and args.minNode < 1):
-		print('FATAL_ERR:', 'minNode should not be less than 1!')
-		exit(-1)
+	#===== Setup output path
+	absOutputDirPath = GetAbsPathInConfig(testCfg, 'OutputDirectory', cfgParentAbsPath)
+	outDirPath = GetOutputDirPath(absOutputDirPath,
+		testCfg['Target']['BindingName'],
+		testCfg['Test']['WorkloadType'],
+		testCfg['Test']['DistType'],
+		testCfg['Test']['RecordCount'],
+		testCfg['Test']['MaxTime'],
+		hostName)
+	CreateDirs(outDirPath)
 
-	#Setup necessary paths:
-	SetupDirPath()
+	#===== Setup YCSB_HOME path
+	YcsbHomePath = GetAbsPathInConfig(testCfg, 'YcsbHome', cfgParentAbsPath)
+	SetYcsbHomeEnvVar(YcsbHomePath)
 
-	#Setup system environment variables
-	SetYcsbHomeEnvVar()
+	#===== Try to connect to the Tester Server
+	conn = GetServerConnection(testCfg['Tester']['SvrAddr'], testCfg['Tester']['SvrPort'], testCfg['Test']['TotalNumOfClient'], testCfg['Test']['ClientIdx'], TCP_CONNECT_RETRY_TIME_LIST)
 
-	outDirPath = GetOutputDirPath(args.workload, args.dist, args.recN, args.maxTime)
+	#===== Setup System Services processes priority
+	for sysSvcBinName in testCfg['SysSvc']['BinList']:
+		pct.ConfigProcAffAndPrioByName(sysSvcBinName, None, ConfigParser.SELECTED_PRIORITY_LEVELS[testCfg['SysSvc']['Priority']])
+
+	#===== Start to run the test
 	try:
-		print('INFO:', 'Checking output directory...')
-		CreateDirs(outDirPath)
-	except:
-		print('FATAL_ERR:', 'Failed to create output directory with path:', outDirPath)
-		exit(-1)
-
-	conn = GetServerConnection(args.totalClient, args.clientI)
-
-	minNodeNum = 1 if args.minNode == None else args.minNode
-	maxNodeNum = args.maxNode
-
-	try:
-		for attemptNum in range(1, args.attemptN + 1):
-			for nodeNum in range(minNodeNum, maxNodeNum + 1):
-				RunOneTypeNodeSetup(conn, (clientI is 0), GetYcsbBinPath(), outDirPath, args.workload, args.dist, args.recN, nodeNum, args.maxOp, args.maxTime, attemptNum)
+		for attemptNum in range(1, testCfg['Test']['AttemptCount'] + 1):
+			for nodeNum in testCfg['Test']['NumOfNodeList']:
+				RunOneTypeNodeSetup(conn,
+					testCfg['Target']['ServerPortStart'],
+					(testCfg['Test']['ClientIdx'] is 0),
+					os.path.join(YcsbHomePath, 'bin', 'ycsb'),
+					testCfg['Target']['BindingName'],
+					ConfigParser.SELECTED_PRIORITY_LEVELS[testCfg['Target']['Priority']],
+					outDirPath,
+					attemptNum,
+					nodeNum,
+					testCfg['Test']['WorkloadType'],
+					testCfg['Test']['DistType'],
+					testCfg['Test']['RecordCount'],
+					testCfg['Test']['MaxOpCount'],
+					testCfg['Test']['MaxTime'],
+					testCfg['Test']['ThreadCountList'],
+					testCfg['Test']['OpPerSessionList'],
+					testCfg['Test']['TargetThroughputList'])
 			print('INFO:', 'Finished attempt', attemptNum, '.')
 
 		#Tell server we are done
@@ -372,6 +360,32 @@ def main():
 	finally:
 		conn.shutdown(socket.SHUT_RDWR)
 		conn.close()
+
+def StartTestsByConfig(cfg, cfgParentAbsPath, startIdx):
+
+	hostName = socket.gethostname()
+	currWorkDir = os.getcwd()
+
+	try:
+
+		for testCfg in cfg['ClientTests'][startIdx:]:
+			StartOneTestsByConfig(testCfg, cfgParentAbsPath, hostName)
+
+	finally:
+		os.chdir(currWorkDir)
+
+def main():
+
+	parser = argparse.ArgumentParser()
+
+	parser.add_argument('--config', type=str, required=True)
+	parser.add_argument('--startIdx', type=int, required=False, default=1)
+
+	args = parser.parse_args()
+
+	cfg, absOutputDir = ConfigParser.ParseConfig(args.config, 'ycsb.test.json')
+
+	StartTestsByConfig(cfg, absOutputDir, args.startIdx - 1)
 
 if __name__ == '__main__':
 	sys.exit(main())

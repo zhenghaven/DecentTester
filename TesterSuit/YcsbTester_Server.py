@@ -16,22 +16,6 @@ else:
 	from .YcsbModules import SocketTools as st
 	from .YcsbModules import procConfigureTools as pct
 
-SELECTED_PRIORITY_LEVELS = {
-	'RealTime' : psutil.REALTIME_PRIORITY_CLASS,
-	'AboveNormal' : psutil.ABOVE_NORMAL_PRIORITY_CLASS,
-	'BelowNormal' : psutil.BELOW_NORMAL_PRIORITY_CLASS,
-	'High' : psutil.HIGH_PRIORITY_CLASS,
-	'Idle' : psutil.IDLE_PRIORITY_CLASS,
-	'Normal' : psutil.NORMAL_PRIORITY_CLASS
-}
-
-def ConfigSysProc(svcBinNameList, svcAffList, svcPriority):
-
-	for svcBinName in svcBinNameList:
-		for p in pct.FindProcsByName(svcBinName):
-			p.nice(svcPriority)
-			p.cpu_affinity(svcAffList)
-
 def SetupTestServer(testerSvrAddr, testerSvrPort):
 
 	print('INFO:', 'Setting up the server...')
@@ -209,7 +193,7 @@ def RunOneTestCase(connArr, targetBin, targetAffFullList, targetPriority, target
 		raise RuntimeError('Invalid Server System Services CPU Affinity List Mode (given='+ str(svcAffMode) +').')
 
 	targetAffList = targetAffFullList[:numOfNode]
-	ConfigSysProc(svcBinNameList, svcAffList, svcPriority)
+	pct.ConfigProcAffAndPrioByName(svcBinNameList, svcAffList, svcPriority)
 
 	procObjs = None
 
@@ -253,7 +237,7 @@ def StartTestsByConfig(configPath, startIdx):
 
 	try:
 
-		for testCfg in cfg['Tests'][startIdx:]:
+		for testCfg in cfg['ServerTests'][startIdx:]:
 
 			testWorkDir = testCfg['WorkDirectory']
 			if os.path.isabs(testCfg['WorkDirectory']) and os.path.exists(testCfg['WorkDirectory']):
@@ -271,8 +255,8 @@ def StartTestsByConfig(configPath, startIdx):
 			connArr = AcceptTestClients(svr)
 
 			ListenToClients(connArr,
-			                testCfg['TargetBin'], testCfg['TargetAffinity'], SELECTED_PRIORITY_LEVELS[testCfg['TargetPriority']], testCfg['TargetPortStart'],
-			                testCfg['SysSvcBinList'], testCfg['SysSvcAffinity'], testCfg['SysSvcAffinityMode'], SELECTED_PRIORITY_LEVELS[testCfg['SysSvcPriority']]
+			                testCfg['TargetBin'], testCfg['TargetAffinity'], ConfigParser.SELECTED_PRIORITY_LEVELS[testCfg['TargetPriority']], testCfg['TargetPortStart'],
+			                testCfg['SysSvcBinList'], testCfg['SysSvcAffinity'], testCfg['SysSvcAffinityMode'], ConfigParser.SELECTED_PRIORITY_LEVELS[testCfg['SysSvcPriority']]
 			)
 
 	finally:

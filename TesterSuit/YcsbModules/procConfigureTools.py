@@ -92,3 +92,12 @@ def FindProcsByName(name):
 		if p.info['name'].startswith(name):
 			ls.append(p)
 	return ls
+
+def ConfigProcAffAndPrioByName(svcBinNameList, svcAffList, svcPriority):
+
+	for svcBinName in svcBinNameList:
+		for p in FindProcsByName(svcBinName):
+			if not (svcAffList == None):
+				p.cpu_affinity(svcAffList)
+			if not (svcPriority == None):
+				p.nice(svcPriority)

@@ -1,5 +1,15 @@
 import os
 import json
+import psutil
+
+SELECTED_PRIORITY_LEVELS = {
+	'RealTime' : psutil.REALTIME_PRIORITY_CLASS,
+	'AboveNormal' : psutil.ABOVE_NORMAL_PRIORITY_CLASS,
+	'BelowNormal' : psutil.BELOW_NORMAL_PRIORITY_CLASS,
+	'High' : psutil.HIGH_PRIORITY_CLASS,
+	'Idle' : psutil.IDLE_PRIORITY_CLASS,
+	'Normal' : psutil.NORMAL_PRIORITY_CLASS
+}
 
 def GetFullStrFromFile(filename):
 
