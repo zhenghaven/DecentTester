@@ -189,7 +189,7 @@ class SeriesBase:
 			return go.Scatter(
 				name = self.name,
 				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 15},
+				marker = {'symbol' : markerSym, 'size' : 13},
 				x = midXY['X'],
 				y = midXY['Y'],
 				error_x = errorXY['X'],
@@ -199,7 +199,7 @@ class SeriesBase:
 			return go.Scatter(
 				name = self.name,
 				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 15},
+				marker = {'symbol' : markerSym, 'size' : 13},
 				x = midXY['X'],
 				y = midXY['Y'],
 				error_x = errorXY['X']
@@ -208,7 +208,7 @@ class SeriesBase:
 			return go.Scatter(
 				name = self.name,
 				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 15},
+				marker = {'symbol' : markerSym, 'size' : 13},
 				x = midXY['X'],
 				y = midXY['Y'],
 				error_y = errorXY['Y']
@@ -217,7 +217,7 @@ class SeriesBase:
 			return go.Scatter(
 				name = self.name,
 				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 15},
+				marker = {'symbol' : markerSym, 'size' : 13},
 				x = midXY['X'],
 				y = midXY['Y']
 			)
@@ -259,13 +259,13 @@ class SeriesXy(SeriesBase):
 		super(SeriesXy, self).__init__(jsonObj, defaultSeries)
 
 	def GetMidXColName(self):
-		return '"' + self.table + '"' + '.' + self.xField
+		return self.xField
 
 	def GetMinXColName(self):
-		return '"' + self.table + '"' + '.' + self.xField + ' Min_Err'
+		return self.xField + '_Min_Err'
 
 	def GetMaxXColName(self):
-		return '"' + self.table + '"' + '.' + self.xField + ' Max_Err'
+		return self.xField + '_Max_Err'
 
 	def GenMidSelectStr(self):
 		return 'SELECT' + ' ' + 'median(' + self.xField + ')' + ' AS ' + '"' + self.GetMidXColName() + '"' + ', ' + 'median(' + self.yField + ')' + ' AS ' + '"' + self.name + '"'
@@ -355,7 +355,11 @@ class Graph:
 	def Plot(self, sqlEngine, outDirPath):
 
 		fig = go.Figure()
-		fig.update_layout(title=self.GetTitle(), yaxis={'title' : self.yLabel}, xaxis={'title' : self.xLabel, 'type' : self.type.plotyType}, width=1000, height=450)
+		fig.update_layout(title=self.GetTitle(),
+			legend={'orientation' : 'h', 'y' : -0.25},
+			yaxis={'title' : self.yLabel},
+			xaxis={'title' : self.xLabel, 'type' : self.type.plotyType},
+			width=850, height=450)
 
 		for i in range(0, len(self.series)):
 			fig.add_trace(self.series[i].GetScatter(sqlEngine=sqlEngine, idx=i))

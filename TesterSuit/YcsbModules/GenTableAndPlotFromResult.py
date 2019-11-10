@@ -12,11 +12,9 @@ import progressbar as pbar # pip install progressbar2
 if __name__ == '__main__':
 	import ProgressBarConfig as pbarCfg
 	import GraphDefinition
-	import ResProcConfigParser
 else:
 	from . import ProgressBarConfig as pbarCfg
 	from . import GraphDefinition
-	from . import ResProcConfigParser
 
 CSV_FILE_SUFFIX   = '.csv'
 EXCEL_FILE_SUFFIX = '.xlsx'
