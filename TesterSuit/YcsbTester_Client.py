@@ -17,7 +17,7 @@ else:
 	from .YcsbModules import SocketTools as st
 	from .YcsbModules import procConfigureTools as pct
 
-TCP_CONNECT_RETRY_TIME_LIST = [2, 4, 8, 16, 20]
+TCP_CONNECT_RETRY_TIME_LIST = [2, 4, 8, 16, 30, 60, 120]
 
 def GetConfigFilePath():
 
@@ -58,10 +58,11 @@ def WriteJsonToFile(filename, jsonObj):
 
 	WriteStrToFile(filename, json.dumps(jsonObj, indent='\t'))
 
-def UpdateClientConfig(numOfNode, svrPortBegin):
+def UpdateClientConfig(numOfNode, svrAddr, svrPortBegin):
 
 	jsonObj = GetJsonFromFile(GetConfigFilePath())
 
+	jsonObj['Enclaves']['DecentDHT']['Address'] = svrAddr
 	jsonObj['Enclaves']['DecentDHT']['Port'] = svrPortBegin + (numOfNode - 1)
 
 	WriteJsonToFile(GetConfigFilePath(), jsonObj)
@@ -105,11 +106,11 @@ def ExecuteYcsbTestCommand(command, procPriority):
 
 	print('INFO:', 'Done!')
 
-def GetYcsbWorkloadPath(filename):
+def GetYcsbWorkloadPath(ycsbHome, filename):
 
-	return os.path.join(GetYcsbHomePath(), 'workloads', filename)
+	return os.path.join(ycsbHome, 'workloads', filename)
 
-def LoadDatabase(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket):
+def LoadDatabase(conn, ycsbHome, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, threadCount, maxOpPerTicket):
 
 	print('INFO:', 'Loading the database...')
 
@@ -130,7 +131,7 @@ def LoadDatabase(conn, ycsbPath, bindingName, procPriority, outPathBase, workloa
 
 	#Construct command
 	options = []
-	options += ['-P', GetYcsbWorkloadPath(workload)]
+	options += ['-P', GetYcsbWorkloadPath(ycsbHome, workload)]
 	options += ['-threads', str(threadCount)]
 
 	options += ['-p', ('recordcount=' + str(recCount * numOfNode))]
@@ -138,7 +139,7 @@ def LoadDatabase(conn, ycsbPath, bindingName, procPriority, outPathBase, workloa
 	options += ['-p', ('measurementtype=' + 'raw')]
 	options += ['-p', ('measurement.raw.output_file=' + outRawPath)]
 
-	command = ['cmd.exe', '/c', ycsbPath, 'load', bindingName]
+	command = ['cmd.exe', '/c', os.path.join(ycsbHome, 'bin', 'ycsb'), 'load', bindingName]
 	command += options
 	command += ['>', outRepPath]
 
@@ -155,7 +156,7 @@ def LoadDatabase(conn, ycsbPath, bindingName, procPriority, outPathBase, workloa
 
 	WaitFor(5)
 
-def RunTest(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp):
+def RunTest(conn, ycsbHome, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp):
 
 	print('INFO:', 'Running the test...')
 
@@ -176,7 +177,7 @@ def RunTest(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, di
 
 	#Construct command
 	options = []
-	options += ['-P', GetYcsbWorkloadPath(workload)]
+	options += ['-P', GetYcsbWorkloadPath(ycsbHome, workload)]
 	options += ['-threads', str(threadCount)]
 	options += ['-target', str(targetThrp)] if targetThrp >= 0 else []
 
@@ -187,7 +188,7 @@ def RunTest(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, di
 	options += ['-p', ('measurementtype=' + 'raw')]
 	options += ['-p', ('measurement.raw.output_file=' + outRawPath)]
 
-	command = ['cmd.exe', '/c', ycsbPath, 'run', bindingName]
+	command = ['cmd.exe', '/c', os.path.join(ycsbHome, 'bin', 'ycsb'), 'run', bindingName]
 	command += options
 	command += ['>', outRepPath]
 
@@ -211,9 +212,9 @@ def SendNumOfNode(conn, numOfNode):
 	if st.SocketRecvPack(conn) != 'OK':
 		raise RuntimeError('Server doesn\'t accept the numOfNode=' + numOfNode + ' !')
 
-def RunOneTypeNodeSetup(conn, svrPortBegin, isMaster, ycsbPath, bindingName, procPriority, outDir, attemptNum, numOfNode, workload, dist, recCount, maxOp, maxTime, threadCountList, opPerSessList, targetThrpList):
+def RunOneTypeNodeSetup(conn, svrAddr, svrPortBegin, isMaster, ycsbHome, bindingName, procPriority, outDir, attemptNum, numOfNode, workload, dist, recCount, maxOp, maxTime, threadCountList, opPerSessList, targetThrpList):
 
-	UpdateClientConfig(numOfNode, svrPortBegin)
+	UpdateClientConfig(numOfNode, svrAddr, svrPortBegin)
 
 	#----- Setup server nodes
 	if isMaster:
@@ -239,7 +240,7 @@ def RunOneTypeNodeSetup(conn, svrPortBegin, isMaster, ycsbPath, bindingName, pro
 
 		outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(loadThreadCount) + '_' + str(loadMaxOpPerTicket) + '_-1'
 		loadOutPathBase = os.path.join(outDir, 'load', outPathBase)
-		LoadDatabase(conn, ycsbPath, bindingName, procPriority, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
+		LoadDatabase(conn, ycsbHome, bindingName, procPriority, loadOutPathBase, workload, dist, recCount, numOfNode, loadThreadCount, loadMaxOpPerTicket)
 	else:
 		st.SocketSendPack(conn, 'Start')
 		if st.SocketRecvPack(conn) != 'Proceed':
@@ -255,7 +256,7 @@ def RunOneTypeNodeSetup(conn, svrPortBegin, isMaster, ycsbPath, bindingName, pro
 				outPathBase = 'Attempt_' + '{0:02d}'.format(attemptNum) + '_' + '{0:02d}'.format(numOfNode) + '_' + '{0:02d}'.format(threadCount) \
 							+ '_' + str(maxOpPerTicket) + '_' + str(targetThrp)
 				outPathBase = os.path.join(outDir, outPathBase)
-				RunTest(conn, ycsbPath, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
+				RunTest(conn, ycsbHome, bindingName, procPriority, outPathBase, workload, dist, recCount, numOfNode, maxOp, maxTime, threadCount, maxOpPerTicket, targetThrp)
 
 	if isMaster:
 		st.SocketSendPack(conn, 'Finished')
@@ -310,8 +311,18 @@ def StartOneTestsByConfig(testCfg, cfgParentAbsPath, hostName):
 	os.chdir(testWorkDir)
 	print('INFO:', 'Working directory switched to:', testWorkDir)
 
-	#===== Setup output path
+	#===== Setup output directory path
 	absOutputDirPath = GetAbsPathInConfig(testCfg, 'OutputDirectory', cfgParentAbsPath)
+	CreateDirs(absOutputDirPath)
+
+	#===== Setup YCSB_HOME path
+	YcsbHomePath = GetAbsPathInConfig(testCfg, 'YcsbHome', cfgParentAbsPath)
+	SetYcsbHomeEnvVar(YcsbHomePath)
+
+	#===== Try to connect to the Tester Server
+	conn = GetServerConnection(testCfg['Tester']['SvrAddr'], testCfg['Tester']['SvrPort'], testCfg['Test']['TotalNumOfClient'], testCfg['Test']['ClientIdx'], TCP_CONNECT_RETRY_TIME_LIST)
+
+	#===== Setup output path
 	outDirPath = GetOutputDirPath(absOutputDirPath,
 		testCfg['Target']['BindingName'],
 		testCfg['Test']['WorkloadType'],
@@ -320,13 +331,6 @@ def StartOneTestsByConfig(testCfg, cfgParentAbsPath, hostName):
 		testCfg['Test']['MaxTime'],
 		hostName)
 	CreateDirs(outDirPath)
-
-	#===== Setup YCSB_HOME path
-	YcsbHomePath = GetAbsPathInConfig(testCfg, 'YcsbHome', cfgParentAbsPath)
-	SetYcsbHomeEnvVar(YcsbHomePath)
-
-	#===== Try to connect to the Tester Server
-	conn = GetServerConnection(testCfg['Tester']['SvrAddr'], testCfg['Tester']['SvrPort'], testCfg['Test']['TotalNumOfClient'], testCfg['Test']['ClientIdx'], TCP_CONNECT_RETRY_TIME_LIST)
 
 	#===== Setup System Services processes priority
 	for sysSvcBinName in testCfg['SysSvc']['BinList']:
@@ -337,9 +341,10 @@ def StartOneTestsByConfig(testCfg, cfgParentAbsPath, hostName):
 		for attemptNum in range(1, testCfg['Test']['AttemptCount'] + 1):
 			for nodeNum in testCfg['Test']['NumOfNodeList']:
 				RunOneTypeNodeSetup(conn,
+					testCfg['Tester']['SvrAddr'],
 					testCfg['Target']['ServerPortStart'],
 					(testCfg['Test']['ClientIdx'] is 0),
-					os.path.join(YcsbHomePath, 'bin', 'ycsb'),
+					YcsbHomePath,
 					testCfg['Target']['BindingName'],
 					ConfigParser.SELECTED_PRIORITY_LEVELS[testCfg['Target']['Priority']],
 					outDirPath,
