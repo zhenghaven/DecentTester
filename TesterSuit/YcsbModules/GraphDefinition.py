@@ -321,7 +321,7 @@ class Graph:
 		return self.xLabel + ' VS. ' + self.yLabel + ' (' + self.comment + ')'
 
 	def GenImgFileName(self):
-		return (self.xLabel + ' VS ' + self.yLabel + ' (' + self.comment + ')').replace(' ', '_')
+		return (self.xLabel + ' VS ' + self.yLabel + ' (' + self.comment + ')').replace(' ', '-')
 
 	def GetMidDataTable(self, sqlEngine):
 		seriesDataFs = []
@@ -356,16 +356,17 @@ class Graph:
 
 		fig = go.Figure()
 		fig.update_layout(title=self.GetTitle(),
-			legend={'orientation' : 'h', 'y' : -0.25},
+			legend={'orientation' : 'h', 'y' : -0.20},
 			yaxis={'title' : self.yLabel},
 			xaxis={'title' : self.xLabel, 'type' : self.type.plotyType},
-			width=850, height=450)
+			width=850, height=450,
+			margin={'l' : 0, 'r' : 0, 't' : 50, 'b' : 0})
 
 		for i in range(0, len(self.series)):
 			fig.add_trace(self.series[i].GetScatter(sqlEngine=sqlEngine, idx=i))
 
 		#fig.show()
-		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.svg'))
+		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.pdf'))
 		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.png'))
 
 class GraphDefinition:
