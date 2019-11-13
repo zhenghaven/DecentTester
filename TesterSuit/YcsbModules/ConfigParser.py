@@ -32,3 +32,20 @@ def ParseConfig(plainPath, cfgSuffix = 'ycsb.resproc.json'):
 	outDirPath, basename = os.path.split(absPath)
 
 	return jsonObj, outDirPath
+
+def RecursiveUpdateDict(base, upt):
+
+	if isinstance(base, dict) and isinstance(upt, dict):
+		for k, v in upt.items():
+			if k in base:
+				#key is in base, update it
+				if isinstance(v, dict):
+					#v is a dict
+					RecursiveUpdateDict(base[k], v)
+				else:
+					base[k] = v
+			else:
+				#key is not in base, create it
+				base[k] = v
+	elif base is None or (upt is not None and not isinstance(upt, dict)):
+		raise RuntimeError('Invalid arguments')

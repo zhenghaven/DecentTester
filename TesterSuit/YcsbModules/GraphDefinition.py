@@ -4,6 +4,11 @@ import enum
 import pandas as pd               # pip install pandas
 import plotly.graph_objects as go # pip install plotly==4.2.1 requests && npm install -g electron@1.8.4 orca
 
+if __name__ == '__main__':
+	import ConfigParser
+else:
+	from . import ConfigParser
+
 PLOTY_MARKER_SELECTED_SYMBOLS = [
 	'circle',			'square',			'diamond',			'cross',			'x',
 	'star',				'hexagram',			'hourglass',		'triangle-up',		'triangle-down',
@@ -15,6 +20,7 @@ class GraphTypes(enum.Enum):
 
 	CATEGORY = (0, 'category')
 	XY       = (1, 'linear')
+	LOG      = (2, 'log')
 
 	def __init__(self, idx, plotyType):
 
@@ -299,6 +305,11 @@ class SeriesXy(SeriesBase):
 			}
 		}
 
+class SeriesLog(SeriesXy):
+
+	def __init__(self, jsonObj, defaultSeries):
+		super(SeriesLog, self).__init__(jsonObj, defaultSeries)
+
 class Graph:
 
 	def __init__(self, jsonObj):
@@ -314,11 +325,28 @@ class Graph:
 				self.series.append(SeriesCategory(item, self.defaultSeries))
 			elif self.type is GraphTypes.XY:
 				self.series.append(SeriesXy(item, self.defaultSeries))
+			elif self.type is GraphTypes.LOG:
+				self.series.append(SeriesLog(item, self.defaultSeries))
 			else:
 				raise RuntimeError('Unsupported series type.')
+		self.plotlyLayout = {
+			'title'  : self.GetInGraphTitle(),
+			'legend' : {'orientation' : 'h', 'y' : -0.30},
+			'yaxis'  : {'gridcolor' : '#eee', 'title' : self.yLabel},
+			'xaxis'  : {'gridcolor' : '#eee', 'title' : self.xLabel, 'type' : self.type.plotyType},
+			'width'  : 600,
+			'height' : 350,
+			'margin' : {'l' : 0, 'r' : 0, 't' : 50, 'b' : 0},
+			'plot_bgcolor' : '#fff'
+		}
+		if 'PlotlyLayout' in jsonObj:
+			ConfigParser.RecursiveUpdateDict(self.plotlyLayout, jsonObj['PlotlyLayout'])
 
 	def GetTitle(self):
 		return self.xLabel + ' VS. ' + self.yLabel + ' (' + self.comment + ')'
+
+	def GetInGraphTitle(self):
+		return self.xLabel + ' VS. ' + self.yLabel + '<br>    (' + self.comment + ')'
 
 	def GenImgFileName(self):
 		return (self.xLabel + ' VS ' + self.yLabel + ' (' + self.comment + ')').replace(' ', '-')
@@ -355,12 +383,7 @@ class Graph:
 	def Plot(self, sqlEngine, outDirPath):
 
 		fig = go.Figure()
-		fig.update_layout(title=self.GetTitle(),
-			legend={'orientation' : 'h', 'y' : -0.20},
-			yaxis={'title' : self.yLabel},
-			xaxis={'title' : self.xLabel, 'type' : self.type.plotyType},
-			width=850, height=450,
-			margin={'l' : 0, 'r' : 0, 't' : 50, 'b' : 0})
+		fig.update_layout(self.plotlyLayout)
 
 		for i in range(0, len(self.series)):
 			fig.add_trace(self.series[i].GetScatter(sqlEngine=sqlEngine, idx=i))
