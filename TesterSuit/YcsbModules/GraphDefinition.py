@@ -3,6 +3,7 @@ import json
 import enum
 import pandas as pd               # pip install pandas
 import plotly.graph_objects as go # pip install plotly==4.2.1 requests && npm install -g electron@1.8.4 orca
+import plotly
 
 if __name__ == '__main__':
 	import ConfigParser
@@ -62,6 +63,7 @@ class SeriesBase:
 		self.where = jsonObj['where'] if 'where' in jsonObj else defaultSeries.where
 		self.groupBy = [x for x in jsonObj['groupBy']] if 'groupBy' in jsonObj else defaultSeries.groupBy
 		self.orderBy = [x for x in jsonObj['orderBy']] if 'orderBy' in jsonObj else defaultSeries.orderBy
+		self.plotlyLayoutUpt = jsonObj['PlotlyLayout'] if 'PlotlyLayout' in jsonObj else None
 
 	def GetMidXColName(self):
 		return self.xField
@@ -191,42 +193,49 @@ class SeriesBase:
 		midXY = self.GetMidXY(sqlEngine)
 		errorXY = self.GetPlotyErrorXY(sqlEngine)
 
+		scatter = {}
 		if 'X' in errorXY and 'Y' in errorXY:
-			return go.Scatter(
-				name = self.name,
-				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 13},
-				x = midXY['X'],
-				y = midXY['Y'],
-				error_x = errorXY['X'],
-				error_y = errorXY['Y']
-			)
+			scatter = {
+				'name' : self.name,
+				'mode' : 'lines+markers',
+				'marker' : {'symbol' : markerSym, 'size' : 13},
+				'x' : midXY['X'],
+				'y' : midXY['Y'],
+				'error_x' : errorXY['X'],
+				'error_y' : errorXY['Y']
+			}
+			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		elif 'X' in errorXY:
-			return go.Scatter(
-				name = self.name,
-				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 13},
-				x = midXY['X'],
-				y = midXY['Y'],
-				error_x = errorXY['X']
-			)
+			scatter = {
+				'name' : self.name,
+				'mode' : 'lines+markers',
+				'marker' : {'symbol' : markerSym, 'size' : 13},
+				'x' : midXY['X'],
+				'y' : midXY['Y'],
+				'error_x' : errorXY['X']
+			}
+			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		elif 'Y' in errorXY:
-			return go.Scatter(
-				name = self.name,
-				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 13},
-				x = midXY['X'],
-				y = midXY['Y'],
-				error_y = errorXY['Y']
-			)
+			scatter = {
+				'name' : self.name,
+				'mode' : 'lines+markers',
+				'marker' : {'symbol' : markerSym, 'size' : 13},
+				'x' : midXY['X'],
+				'y' : midXY['Y'],
+				'error_y' : errorXY['Y']
+			}
+			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		else:
-			return go.Scatter(
-				name = self.name,
-				mode = 'lines+markers',
-				marker = {'symbol' : markerSym, 'size' : 13},
-				x = midXY['X'],
-				y = midXY['Y']
-			)
+			scatter = {
+				'name' : self.name,
+				'mode' : 'lines+markers',
+				'marker' : {'symbol' : markerSym, 'size' : 13},
+				'x' : midXY['X'],
+				'y' : midXY['Y']
+			}
+			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
+
+		return go.Scatter(**scatter)
 
 class SeriesCategory(SeriesBase):
 
@@ -349,7 +358,7 @@ class Graph:
 		return self.xLabel + ' VS. ' + self.yLabel + '<br>    (' + self.comment + ')'
 
 	def GenImgFileName(self):
-		return (self.xLabel + ' VS ' + self.yLabel + ' (' + self.comment + ')').replace(' ', '-')
+		return (self.xLabel.replace('/', '-per-') + ' VS ' + self.yLabel.replace('/', '-per-') + ' (' + self.comment + ')').replace(' ', '-')
 
 	def GetMidDataTable(self, sqlEngine):
 		seriesDataFs = []
@@ -391,6 +400,7 @@ class Graph:
 		#fig.show()
 		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.pdf'))
 		fig.write_image(os.path.join(outDirPath, self.GenImgFileName() + '.png'))
+		plotly.offline.plot(fig, auto_open=False, filename=os.path.join(outDirPath, self.GenImgFileName() + '.html'))
 
 class GraphDefinition:
 
