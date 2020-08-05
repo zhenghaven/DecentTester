@@ -8,7 +8,7 @@
 #include <DecentApi/Common/Net/SecureConnectionPoolBase.h>
 
 #if !defined(DECENT_DHT_NAIVE_RA_VER) && defined(ENCLAVE_PLATFORM_SGX)
-#	define DECENT_DHT_NAIVE_RA_VER
+//#	define DECENT_DHT_NAIVE_RA_VER
 #endif // !defined(DECENT_DHT_NAIVE_RA_VER) && defined(ENCLAVE_PLATFORM_SGX)
 
 #ifdef DECENT_DHT_NAIVE_RA_VER

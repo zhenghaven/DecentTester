@@ -204,7 +204,6 @@ class SeriesBase:
 				'error_x' : errorXY['X'],
 				'error_y' : errorXY['Y']
 			}
-			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		elif 'X' in errorXY:
 			scatter = {
 				'name' : self.name,
@@ -214,7 +213,6 @@ class SeriesBase:
 				'y' : midXY['Y'],
 				'error_x' : errorXY['X']
 			}
-			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		elif 'Y' in errorXY:
 			scatter = {
 				'name' : self.name,
@@ -224,7 +222,6 @@ class SeriesBase:
 				'y' : midXY['Y'],
 				'error_y' : errorXY['Y']
 			}
-			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		else:
 			scatter = {
 				'name' : self.name,
@@ -233,8 +230,8 @@ class SeriesBase:
 				'x' : midXY['X'],
 				'y' : midXY['Y']
 			}
-			ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 
+		ConfigParser.RecursiveUpdateDict(scatter, self.plotlyLayoutUpt)
 		return go.Scatter(**scatter)
 
 class SeriesCategory(SeriesBase):

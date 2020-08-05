@@ -6,7 +6,7 @@
 
 #include "Enclave_u.h"
 
-#define DECENT_DHT_NAIVE_RA_VER
+//#define DECENT_DHT_NAIVE_RA_VER
 
 #ifdef DECENT_DHT_NAIVE_RA_VER
 #	include<cppcodec/hex_upper.hpp>
